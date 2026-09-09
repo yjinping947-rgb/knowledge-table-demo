@@ -1,0 +1,11 @@
+[
+  {"id":"S01","seatId":"action","title":"长期消耗下，离开也是一种止损","summary":"当工作持续影响睡眠和健康时，先离开可能比继续坚持更理性。","url":null,"isMock":true},
+  {"id":"S02","seatId":"action","title":"恢复能力也是职业资源","summary":"严重消耗会侵蚀判断力与求职准备能力，维持现状并非零成本。","url":null,"isMock":true},
+  {"id":"S03","seatId":"action","title":"离开可能是重获选择的起点","summary":"暂时退出有害环境，有时能为重新判断方向创造空间。","url":null,"isMock":true},
+  {"id":"S04","seatId":"realist","title":"收入中断会改变问题性质","summary":"没有现金流时，职业选择容易迅速变成日常生存压力。","url":null,"isMock":true},
+  {"id":"S05","seatId":"realist","title":"求职周期很难精确预测","summary":"计划中的短暂空窗可能延长，应为不确定性留下余量。","url":null,"isMock":true},
+  {"id":"S06","seatId":"realist","title":"固定责任决定风险边界","summary":"房租、债务和家庭责任会直接降低个人可承受的空窗期。","url":null,"isMock":true},
+  {"id":"S07","seatId":"conditional","title":"裸辞不是一道统一判断题","summary":"储蓄、健康、行业景气与责任不同，合理选择也会不同。","url":null,"isMock":true},
+  {"id":"S08","seatId":"conditional","title":"离开与硬撑之间仍有选项","summary":"请假、降低投入或设定明确期限，可以争取恢复与准备空间。","url":null,"isMock":true},
+  {"id":"S09","seatId":"conditional","title":"先把判断条件说清楚","summary":"与其抽象争论辞不辞，不如明确触发离职的最低条件。","url":null,"isMock":true}
+]
