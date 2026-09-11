@@ -1,0 +1,26 @@
+# .editorconfig
+# 对标 Next.js / Vue / Supabase 的项目风格统一配置。
+# 配合 ESLint / Prettier（如果以后加）使用。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false  # Markdown 末尾双空格 = 换行
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.{ts,tsx,js,jsx,mjs,cjs}]
+indent_size = 2
+quote_type = single
+
+[*.json]
+indent_size = 2

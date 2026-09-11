@@ -1,0 +1,34 @@
+# .gitattributes
+# 显式声明行尾 + diff driver + linguist 配置
+# 配合 .editorconfig 让 git 在不同 OS 下行为一致。
+
+# 源文件强制 LF
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.mjs       text eol=lf
+*.cjs       text eol=lf
+*.json      text eol=lf
+*.css       text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.sh        text eol=lf
+
+# Windows 脚本
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+
+# 二进制
+*.jpg       binary
+*.jpeg      binary
+*.png       binary
+*.gif       binary
+*.webp      binary
+*.ico       binary
+*.pdf       binary
+
+# 大数据集（提示 git 走 lfs，但本项目不强制 LFS）
+*.jsonl     -text

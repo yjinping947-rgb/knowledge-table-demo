@@ -2,6 +2,7 @@
 // KnowledgeTable 的状态机。详见 .harness/AGENTS.md 与 .harness/rules/ui-invariance.md。
 
 import type { DiscussResult, FirstChoice, PositionChange, SecondChoice, SummaryResult } from "@/lib/types";
+import type { UserSession } from "../../user";
 
 export type Stage =
   | "home"
@@ -74,3 +75,15 @@ export const selectActiveSeat = (s: KnowledgeTableState) =>
   s.stage.includes("response") ? selectLatestResponse(s)?.selectedSeatId : undefined;
 export const selectDemoMode = (s: KnowledgeTableState) =>
   s.responses.some((r) => r.mode === "fallback") || s.summary?.mode === "fallback";
+
+/**
+ * 把 KnowledgeTableState 投影到 user 域的 UserSession。
+ * director / summary / analysis 等下游消费者应通过此选择器读 user 数据，
+ * 而不是直接读 state 的原始字段（详见 .harness/agents/user.md "与其他 agent 的边界"）。
+ */
+export const selectUserSession = (s: KnowledgeTableState): UserSession => ({
+  firstChoice: s.firstChoice,
+  secondChoice: s.secondChoice,
+  positionChange: s.positionChange,
+  respondedSeatIds: s.responses.map((r) => r.selectedSeatId),
+});

@@ -1,0 +1,12 @@
+# .github/ISSUE_TEMPLATE/config.yml
+# GitHub Issue 模板选择器。对标 Next.js / Nuxt / Supabase。
+# 当访问 "New issue" 时让用户先选分类。
+
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 讨论与想法
+    url: https://github.com/MiniMax/knowledge-table-demo/discussions
+    about: 想聊一聊、问个问题、想个 idea？去 Discussions。
+  - name: 🔒 安全漏洞
+    url: https://github.com/MiniMax/knowledge-table-demo/security/advisories/new
+    about: 私密上报安全相关问题，请不要在公开 issue 里发。

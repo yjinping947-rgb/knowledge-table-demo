@@ -1,0 +1,59 @@
+# .github/CODEOWNERS
+# 把 5 角色映射成 reviewer 路由。对标 Vue / Next.js / Supabase 的 CODEOWNERS 模式。
+#
+# 角色定义见 .harness/agents/*.md。
+# GitHub Team 的 handle 是占位（@MiniMax/<role>-team），正式启用前请在 GitHub 组织里建好对应 team 并改名。
+# 现在所有路径都默认归 @MiniMax/maintainers，让主维护者兜底评审；建好 team 后替换即可。
+
+# —— 默认兜底 ——
+*                                          @MiniMax/maintainers
+
+# —— 导演（director）— 业务总编排 ——
+/app/                                      @MiniMax/director-team
+/src/agents/director/                      @MiniMax/director-team
+/src/client/                               @MiniMax/director-team
+/src/lib/                                  @MiniMax/director-team
+/src/data/                                 @MiniMax/director-team
+/components/                               @MiniMax/director-team
+/tests/                                    @MiniMax/director-team
+/.harness/contracts/                       @MiniMax/director-team
+/.harness/evals/                           @MiniMax/director-team
+/scripts/                                  @MiniMax/director-team
+
+# —— 行动派（action）— 健康止损立场 ——
+/src/agents/action/                        @MiniMax/action-team
+/src/lib/prompts/seats/action.ts           @MiniMax/action-team
+/.harness/agents/action.md                 @MiniMax/action-team
+
+# —— 现实派（realist）— 经济安全立场 ——
+/src/agents/realist/                       @MiniMax/realist-team
+/src/lib/prompts/seats/realist.ts          @MiniMax/realist-team
+/.harness/agents/realist.md                @MiniMax/realist-team
+
+# —— 条件派（conditional）— 条件判断立场 ——
+/src/agents/conditional/                   @MiniMax/conditional-team
+/src/lib/prompts/seats/conditional.ts      @MiniMax/conditional-team
+/.harness/agents/conditional.md            @MiniMax/conditional-team
+
+# —— 用户域（user）— 抽象类型与状态机 ——
+/src/user/                                 @MiniMax/user-team
+/.harness/agents/user.md                   @MiniMax/user-team
+
+# —— 治理层（harness）— 改这些文件必须 director + 至少一个席位 review ——
+/.harness/AGENTS.md                        @MiniMax/maintainers @MiniMax/director-team
+/.harness/INDEX.md                         @MiniMax/maintainers @MiniMax/director-team
+/.harness/rules/                           @MiniMax/maintainers
+/.harness/skills/                          @MiniMax/maintainers
+/.harness/hooks/                           @MiniMax/maintainers
+
+# —— 冻结资源 ——
+/app/globals.css                           @MiniMax/maintainers
+/app/layout.tsx                            @MiniMax/maintainers
+/app/page.tsx                              @MiniMax/maintainers
+/public/assets/                            @MiniMax/maintainers
+
+# —— CI / 依赖 ——
+/.github/workflows/                        @MiniMax/maintainers
+/.github/dependabot.yml                    @MiniMax/maintainers
+/package.json                              @MiniMax/maintainers
+/package-lock.json                         @MiniMax/maintainers

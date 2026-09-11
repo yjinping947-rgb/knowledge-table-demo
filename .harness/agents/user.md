@@ -16,11 +16,14 @@ owned_files:
 
 ## 类型
 
-详见 `src/user/types.ts`：
+详见 `src/user/types.ts`（user 域新增）：
 
 - `UserSession` — 一次完整的两轮选择 + 反思
-- `Trajectory` — 立场轨迹
-- `PositionChange` — 立场变化程度
+- `Trajectory` — 立场轨迹（before / during / after）
+
+以及 `src/lib/types.ts`（跨模块共享，user 域引用）：
+
+- `PositionChange` — 立场变化程度（`"unchanged" | "slightly_changed" | "changed"`）
 
 ## 约束
 
@@ -33,3 +36,13 @@ owned_files:
 - `user` 不参与讨论，只描述用户在讨论中的位置
 - director 决定路由时不读 user 的"过去选择"作为依据（避免循环）
 - 客户端的 state machine 是 user 域的运行时表达
+- 运行时通过 `src/client/knowledge-table/state.ts` 的 `selectUserSession(state)` 投影出 `UserSession`，下游消费者（director / summary）应通过该选择器读 user 数据，不直接读 state 原始字段
+
+## 类型所在位置
+
+```
+src/user/types.ts      → UserSession, Trajectory
+src/user/index.ts      → 统一出口
+src/lib/types.ts       → PositionChange（跨模块，user 域引用）
+src/client/knowledge-table/state.ts → KnowledgeTableState（含 selectUserSession 选择器）
+```
