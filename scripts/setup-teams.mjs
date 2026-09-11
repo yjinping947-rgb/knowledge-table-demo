@@ -4,10 +4,11 @@
 // 详见 docs/contributing/team-setup.md。
 //
 // 用法：
-//   1. 配 GH_TOKEN 或 `gh auth login`
+//   1. 配 GH_TOKEN 或 `gh auth login`（create / add-members 模式需要）
 //   2. 改下面的 ORG 常量
-//   3. 跑 `node scripts/setup-teams.mjs`
-//   4. 跑 `node scripts/setup-teams.mjs --add-members <github-handle>` 加成员
+//   3. 跑 `node scripts/setup-teams.mjs create`
+//   4. 跑 `node scripts/setup-teams.mjs add-members <github-handle>` 加成员
+//   5. **不需 admin 模式**：跑 `node scripts/setup-teams.mjs single-user <handle>`（单人开发时）
 //
 // 不会重复创建已存在的 team（idempotent）。
 
@@ -131,11 +132,13 @@ function main() {
   const cmd = args[0];
   const handles = args.slice(1).filter((a) => !a.startsWith("--"));
 
-  if (cmd !== "create" && cmd !== "add-members" && cmd !== "list") {
+  if (cmd !== "create" && cmd !== "add-members" && cmd !== "list" && cmd !== "single-user" && cmd !== "team-mode") {
     console.log("Usage:");
-    console.log("  node scripts/setup-teams.mjs create");
-    console.log("  node scripts/setup-teams.mjs add-members <github-handle> [<handle>...]");
-    console.log("  node scripts/setup-teams.mjs list");
+    console.log("  node scripts/setup-teams.mjs create                    # 建 4 个 team（需要 org admin）");
+    console.log("  node scripts/setup-teams.mjs add-members <handle>...   # 加成员到 4 个 team");
+    console.log("  node scripts/setup-teams.mjs list                      # 列现有 team");
+    console.log("  node scripts/setup-teams.mjs single-user <handle>      # 单人模式：把 CODEOWNERS 改成 @<handle>（不需 admin）");
+    console.log("  node scripts/setup-teams.mjs team-mode                 # 还原 single-user → 4 team 模式");
     console.log("");
     console.log(`Configured org: ${ORG}`);
     console.log("Edit this script to change ORG.");
@@ -152,7 +155,7 @@ function main() {
         const marker = exists ? "✓ (in spec)" : " ";
         console.log(`  ${marker} ${t.slug}  — ${t.name}`);
       }
-    } catch (e) {
+    } catch {
       console.log(`  (failed to list: ${r})`);
     }
     return;
@@ -195,6 +198,56 @@ function main() {
       console.log(`Adding to ${team.name}:`);
       addMembers(team.name, handles);
     }
+    return;
+  }
+
+  if (cmd === "single-user") {
+    // 单人模式：不需要 admin。把所有 @MiniMax/<role>-team 替换为 @<handle>。
+    // 适合：单人开发 / 没法建组织 team / 想立刻让 CODEOWNERS 生效。
+    if (handles.length === 0) {
+      console.error("需要你的 github handle：node scripts/setup-teams.mjs single-user <handle>");
+      console.error("例如：node scripts/setup-teams.mjs single-user hock2022");
+      process.exit(1);
+    }
+    const handle = handles[0];
+    const ownersPath = resolve(process.cwd(), ".github/CODEOWNERS");
+    if (!existsSync(ownersPath)) {
+      console.error(`找不到 ${ownersPath}`);
+      process.exit(1);
+    }
+    let content = readFileSync(ownersPath, "utf-8");
+    const original = content;
+
+    // 替换所有 @MiniMax/<role>-team 为 @<handle>
+    content = content.replace(/@MiniMax\/[\w-]+/g, `@${handle}`);
+
+    if (content === original) {
+      console.log(`CODEOWNERS 里没有找到 @MiniMax/<role>-team，可能已经是 single-user 模式`);
+      console.log(`(或者 ORG 常量不是 MiniMax)`);
+      return;
+    }
+
+    // 写一份备份
+    const backup = ownersPath + ".team-mode.bak";
+    writeFileSync(backup, original, "utf-8");
+    writeFileSync(ownersPath, content, "utf-8");
+    console.log(`✓ CODEOWNERS → single-user mode (all @MiniMax/<role>-team → @${handle})`);
+    console.log(`  备份：${backup}`);
+    console.log(`  下次跑 \`node scripts/setup-teams.mjs team-mode\` 还原`);
+    return;
+  }
+
+  if (cmd === "team-mode") {
+    // 还原 single-user → 4 team 模式。从备份恢复。
+    const ownersPath = resolve(process.cwd(), ".github/CODEOWNERS");
+    const backup = ownersPath + ".team-mode.bak";
+    if (!existsSync(backup)) {
+      console.error(`找不到备份 ${backup}，无法还原`);
+      process.exit(1);
+    }
+    const original = readFileSync(backup, "utf-8");
+    writeFileSync(ownersPath, original, "utf-8");
+    console.log(`✓ CODEOWNERS 还原为 4 team 模式（从 .team-mode.bak）`);
     return;
   }
 }

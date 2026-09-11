@@ -64,6 +64,39 @@ node scripts/setup-teams.mjs list
 - 用 `.tmp/team-cache.json` 缓存创建结果（即使重复跑也只 hit 一次 GitHub API）
 - 加成员用 `PUT /orgs/.../teams/.../memberships/...`（已加的会更新，不会重复）
 
+## 不需 admin：单人模式
+
+如果你是单人开发 / 拿不到 org admin 权限 / 想立刻让 CODEOWNERS 生效，**单人模式**会：
+
+- 把 `.github/CODEOWNERS` 里所有 `@MiniMax/<role>-team` 替换成 `@<your-handle>`
+- 自动备份原文件到 `.github/CODEOWNERS.team-mode.bak`（想还原时用 `team-mode` 命令）
+- **不调用任何 GitHub API**——纯本地文件替换
+
+```bash
+# 1. 跑 single-user
+node scripts/setup-teams.mjs single-user hock2022
+# 输出：
+#   Replaced 36 handles
+#   ✓ CODEOWNERS → single-user mode (all @MiniMax/<role>-team → @hock2022)
+#     备份：.github/CODEOWNERS.team-mode.bak
+#     下次跑 `node scripts/setup-teams.mjs team-mode` 还原
+
+# 2. 之后 PR 提上来，CODEOWNERS 会自动 @hock2022 review
+
+# 3. 想还原成 4 team 模式（等有 admin 时）：
+node scripts/setup-teams.mjs team-mode
+#   ✓ CODEOWNERS 还原为 4 team 模式（从 .team-mode.bak）
+```
+
+> **⚠️ single-user 是临时方案**：适合单人 demo / 没法建组织 team 的场景。多人协作时必须用 `create` 模式建 4 个 team，否则所有人 review 全堆在一个人身上。
+
+| 模式 | 何时用 | 需要 admin | 改动 |
+|---|---|---|---|
+| `create` | 4 人小团队 / 长期项目 | 是 | GitHub 上建 4 team |
+| `add-members` | 加新人 | 是 | GitHub 上加 member |
+| `single-user` | 单人 demo / 临时 | 否 | 本地替换 CODEOWNERS |
+| `team-mode` | 从 single-user 还原 | 否 | 本地还原 CODEOWNERS |
+
 ## 手动方式（不用脚本）
 
 如果不想用 `gh` CLI，可以手动建：
