@@ -6,7 +6,7 @@
 
 1. `AI_API_KEY` 或 `AI_BASE_URL` 缺失
 2. `getAIClient()` 返回 `null`
-3. 模型超时（> 12s）
+3. 模型超时（> 30s）
 4. 输出无法 `JSON.parse`
 5. `Zod` schema 校验失败
 6. `sourceIds` 越界（不在选中席位的绑定列表内）

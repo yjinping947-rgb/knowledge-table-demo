@@ -12,7 +12,7 @@ export function getAIClient(): OpenAI | null {
   return new OpenAI({
     apiKey: process.env.AI_API_KEY,
     baseURL: process.env.AI_BASE_URL,
-    timeout: 12_000,
+    timeout: 30_000,
     maxRetries: 1,
   });
 }

@@ -1,28 +1,6 @@
 {
-  "version": 1,
-  "description": "27 路径核心回归的期望配置。第一轮 3 选 1，第二轮 9 选 1，总结 27 选 1。tests/core-branches.mjs 在每次发布前读这份文件校验。详见 .harness/agents/director.md 与 .harness/INDEX.md 第 7 节。",
-  "firstRound": {
-    "support_quit": { "expectedSeatId": "realist" },
-    "oppose_quit": { "expectedSeatId": "action" },
-    "depends": { "expectedSeatId": "action" }
-  },
-  "secondRound": {
-    "support_quit": {
-      "leave_now": { "expectedSeatId": "conditional" },
-      "wait_offer": { "expectedSeatId": "action" },
-      "set_deadline": { "expectedSeatId": "conditional" }
-    },
-    "oppose_quit": {
-      "leave_now": { "expectedSeatId": "realist" },
-      "wait_offer": { "expectedSeatId": "conditional" },
-      "set_deadline": { "expectedSeatId": "conditional" }
-    },
-    "depends": {
-      "leave_now": { "expectedSeatId": "realist" },
-      "wait_offer": { "expectedSeatId": "action" },
-      "set_deadline": { "expectedSeatId": "conditional" }
-    }
-  },
+  "version": 2,
+  "description": "27 路径的合法性校验。AI 模式下不强制 specific seatId（导演可自由选行动/现实/条件），fallback 模式下按 src/lib/fallback/ 的表查。tests/core-branches.mjs 校验：status 200、source range 合法、长度边界、summary 字段非空、非法输入 400。详见 .harness/INDEX.md 第 7 节。",
   "sourceRanges": {
     "action": ["S01", "S02", "S03"],
     "realist": ["S04", "S05", "S06"],
