@@ -19,3 +19,7 @@ next.pid
 
 # agent scratch
 .mavis-trash/
+
+# large embedding files (regenerate via scripts/embed-topics.mjs)
+src/data/topic-embeddings.json
+src/data/rag-embeddings.json
