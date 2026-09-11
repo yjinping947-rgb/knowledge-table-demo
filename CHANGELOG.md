@@ -12,6 +12,16 @@
 - 27 路径测试在 RAG 模式下加 lock 模式（`AI_API_KEY=disabled` 时跑）
 - `lint-staged` 启用后跑一遍 lint:fix 看真实提速
 
+## [1.1.1] - 2026-09-12
+
+### 简化
+
+- 改 `.github/CODEOWNERS`：从 5 角色团队（maintainers + director + action + realist + conditional + user = 6 team）简化到 3 团队（maintainers + director-team + seats-team）。3 席位 + 用户域合到 `seats-team`。
+- 改 `docs/contributing/team-setup.md`：反映 3 团队结构 + 加"review team vs agent 角色"对照表
+- 改 `.harness/INDEX.md` 第 8 节：标注 review team 数 (3) ≠ agent 角色数 (5)
+
+> 运行时 / 契约层（5 角色）不变。变的只是 review 路由 admin 层。
+
 ## [1.1.0] - 2026-09-12
 
 ### 补齐治理层

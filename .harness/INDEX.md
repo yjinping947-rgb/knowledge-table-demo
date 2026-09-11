@@ -80,9 +80,12 @@
 | `.github/ISSUE_TEMPLATE/bug.md` | bug 报告模板 | reporter |
 | `.github/ISSUE_TEMPLATE/feature.md` | feature 请求模板 | reporter |
 | `.github/ISSUE_TEMPLATE/config.yml` | issue chooser 配置 | director |
-| `.github/CODEOWNERS` | 5 角色 reviewer 自动路由 | CODEOWNERS 团队 |
+| `.github/CODEOWNERS` | 3 团队 reviewer 自动路由（maintainers / director-team / seats-team） | CODEOWNERS 团队 |
 | `.github/dependabot.yml` | 自动依赖升级（next/react/zod 分组） | dependabot |
-| `.github/workflows/ci.yml` | typecheck + lint + build + 27 路径 evals | CI |
+| `.github/workflows/ci.yml` | typecheck + lint + build + 27 路径 evals + 8 RAG 路径 | CI |
+| `.github/workflows/branch-name.yml` | PR 源分支名格式校验 | CI |
+
+> **review team 数 vs agent 角色数**：`.harness/agents/` 是 5 角色（运行时 / 契约层），`.github/CODEOWNERS` 是 3 team（review 路由层）。3 席位（action/realist/conditional）+ user 域合到 `seats-team`。详见 [`../docs/contributing/team-setup.md`](../docs/contributing/team-setup.md) 最后一节。
 
 ## 9. 文档（docs/）
 
