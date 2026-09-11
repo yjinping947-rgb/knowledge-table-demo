@@ -12,6 +12,9 @@ export type DiscussResult = {
   reply: string;
   hostComment: string;
   sourceIds: string[];
+  // RAG 模式新增：每条 sourceId 对应的原文 URL + 作者
+  sourceUrls?: string[];
+  authors?: string[];
   mode: Mode;
 };
 
@@ -21,5 +24,9 @@ export type SummaryResult = {
   hiddenAssumption: string;
   trajectory: { before: string; during: string; after: string };
   openQuestion: string;
+  // RAG 模式新增：4 字段对应 4 条真实来源
+  sourceIds?: string[];
+  sourceUrls?: string[];
+  authors?: string[];
   mode: Mode;
 };

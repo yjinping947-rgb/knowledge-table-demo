@@ -176,7 +176,7 @@ export default function KnowledgeTable() {
           )}
         </UserSeat>
       </section>
-      <footer className="mock-note">模拟观点数据，仅用于 Demo；正式版本将替换为真实知乎回答。</footer>
+      <footer className="mock-note">基于 20 话题 × 3 派 1175 条真实知乎回答库（RAG cosine 检索 top-3）。每条 reply 附原文链接。</footer>
     </main>
   );
 }

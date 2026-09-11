@@ -34,6 +34,24 @@ export function SeatCard({
         <div className="reply">
           <span>回应你的选择</span>
           <p>{latest.reply}</p>
+          {latest.sourceUrls && latest.sourceUrls[0] && (
+            <a
+              className="reply-source"
+              href={latest.sourceUrls[0]}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-block",
+                marginTop: 8,
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--ink)",
+                textDecoration: "underline",
+              }}
+            >
+              查看原文（{latest.authors?.[0] ?? "知乎答主"}）↗
+            </a>
+          )}
         </div>
       )}
       <div className="source-chips">
