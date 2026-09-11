@@ -1,14 +1,9 @@
 {
-  "version": 2,
-  "description": "27 路径的合法性校验。AI 模式下不强制 specific seatId（导演可自由选行动/现实/条件），fallback 模式下按 src/lib/fallback/ 的表查。tests/core-branches.mjs 校验：status 200、source range 合法、长度边界、summary 字段非空、非法输入 400。详见 .harness/INDEX.md 第 7 节。",
-  "sourceRanges": {
-    "action": ["S01", "S02", "S03"],
-    "realist": ["S04", "S05", "S06"],
-    "conditional": ["S07", "S08", "S09"]
-  },
+  "version": 3,
+  "description": "KnowledgeTable RAG 模式：reply 来自 1175 条 20 话题 × 3 派真实知乎库。tests 只校验合法性（status 200、3 选 1 seatId、sourceIds 非空字符串、reply/hostComment 长度、summary 字段非空、非法输入 400）。详见 .harness/INDEX.md 第 7 节。",
   "lengthLimits": {
-    "reply": 140,
-    "hostComment": 100
+    "reply": 320,
+    "hostComment": 200
   },
   "summaryFields": [
     "consensus",

@@ -10,6 +10,7 @@ npm-debug.log*
 
 # build / cache
 tsconfig.tsbuildinfo
+next-env.d.ts
 
 # dev test artifacts (next.log / next.out / next.err / next.pid)
 next.log
@@ -20,6 +21,6 @@ next.pid
 # agent scratch
 .mavis-trash/
 
-# large embedding files (regenerate via scripts/embed-topics.mjs)
-src/data/topic-embeddings.json
-src/data/rag-embeddings.json
+# large embedding files (regenerate via modules/corpus/scripts/embed-topics.mjs)
+modules/corpus/src/data/topic-embeddings.json
+modules/corpus/src/data/rag-embeddings.json

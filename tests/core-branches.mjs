@@ -39,12 +39,10 @@ for (const firstChoice of firstChoices) {
   });
   assert.equal(firstRes.status, 200, `first[${firstChoice}] status`);
   const first = await firstRes.json();
-  // AI 模式下导演可自由选席，只校验合法性（seatId 在 3 个里，sourceIds 在对应 range 内）
+  // RAG 模式：reply 来自 1175 条 真实知乎库，sourceIds 是真实 contentId
   assert(["action", "realist", "conditional"].includes(first.selectedSeatId), `first[${firstChoice}] invalid seatId: ${first.selectedSeatId}`);
-  assert(
-    first.sourceIds.every((id) => evals.sourceRanges[first.selectedSeatId].includes(id)),
-    `first[${firstChoice}] sourceIds out of range`,
-  );
+  assert(Array.isArray(first.sourceIds) && first.sourceIds.length > 0, `first[${firstChoice}] sourceIds missing`);
+  assert(first.sourceIds.every((id) => typeof id === "string" && id.length > 0), `first[${firstChoice}] sourceIds invalid`);
   assert(first.reply.length <= evals.lengthLimits.reply, `first[${firstChoice}] reply too long`);
   assert(first.hostComment.length <= evals.lengthLimits.hostComment, `first[${firstChoice}] hostComment too long`);
   firstCount++;
@@ -59,10 +57,8 @@ for (const firstChoice of firstChoices) {
     assert.equal(secondRes.status, 200, `second[${firstChoice}][${secondChoice}] status`);
     const second = await secondRes.json();
     assert(["action", "realist", "conditional"].includes(second.selectedSeatId), `second[${firstChoice}][${secondChoice}] invalid seatId: ${second.selectedSeatId}`);
-    assert(
-      second.sourceIds.every((id) => evals.sourceRanges[second.selectedSeatId].includes(id)),
-      `second[${firstChoice}][${secondChoice}] sourceIds out of range`,
-    );
+    assert(Array.isArray(second.sourceIds) && second.sourceIds.length > 0, `second[${firstChoice}][${secondChoice}] sourceIds missing`);
+    assert(second.sourceIds.every((id) => typeof id === "string" && id.length > 0), `second[${firstChoice}][${secondChoice}] sourceIds invalid`);
     assert(second.reply.length <= evals.lengthLimits.reply, `second reply too long`);
     assert(second.hostComment.length <= evals.lengthLimits.hostComment, `second hostComment too long`);
     secondCount++;

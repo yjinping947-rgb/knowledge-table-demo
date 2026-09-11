@@ -1,6 +1,6 @@
 {
   "name": "knowledge-table-demo",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,6 +13,8 @@
     "test:core": "node tests/core-branches.mjs",
     "test:rag": "node tests/rooms-rag.mjs",
     "test:all": "node tests/core-branches.mjs && node tests/rooms-rag.mjs",
+    "rag:build": "node modules/corpus/scripts/collect-corpus-batch.mjs && node modules/corpus/scripts/embed-topics.mjs",
+    "rag:build-rooms": "node modules/corpus/scripts/build-rooms.mjs",
     "prepare": "husky"
   },
   "lint-staged": {
