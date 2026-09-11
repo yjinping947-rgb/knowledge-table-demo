@@ -26,7 +26,7 @@ export type RagEmbedding = {
 let cachedCorpus: RagItem[] | null = null;
 let cachedEmbeddings: RagEmbedding[] | null = null;
 
-async function loadCorpus(): Promise<RagItem[]> {
+export async function loadCorpus(): Promise<RagItem[]> {
   if (cachedCorpus !== null) return cachedCorpus;
   const path = resolve(process.cwd(), "src/data/rag-corpus.json");
   const data: RagItem[] = JSON.parse(await readFile(path, "utf8"));
