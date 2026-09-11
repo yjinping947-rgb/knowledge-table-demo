@@ -1,0 +1,19 @@
+// src/lib/validators/summary.ts
+// /api/summary 的请求与响应 schema。详见 .harness/contracts/summary.md。
+
+import { z } from "zod";
+
+export const summaryRequestSchema = z.object({
+  firstChoice: z.enum(["support_quit", "oppose_quit", "depends"]),
+  secondChoice: z.enum(["leave_now", "wait_offer", "set_deadline"]),
+  positionChange: z.enum(["unchanged", "slightly_changed", "changed"]),
+  respondedSeatIds: z.array(z.enum(["action", "realist", "conditional"])).max(3),
+});
+
+export const summaryOutputSchema = z.object({
+  consensus: z.string().min(1),
+  disagreement: z.string().min(1),
+  hiddenAssumption: z.string().min(1),
+  trajectory: z.object({ before: z.string().min(1), during: z.string().min(1), after: z.string().min(1) }),
+  openQuestion: z.string().min(1),
+});

@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Typecheck · Lint · Build · Evals
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.9"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Start server
+        run: |
+          nohup npm run start > next.log 2>&1 &
+          echo $! > next.pid
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s http://127.0.0.1:3000 > /dev/null; then
+              echo "Server up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server failed to start"
+          cat next.log
+          exit 1
+
+      - name: Run evals (27 paths + invalid input)
+        run: node tests/core-branches.mjs
+
+      - name: Stop server
+        if: always()
+        run: kill $(cat next.pid) 2>/dev/null || true
+
+      - name: Upload server log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-server-log
+          path: next.log

@@ -1,0 +1,1 @@
+node .harness/hooks/pre-commit.mjs

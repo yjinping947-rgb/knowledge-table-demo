@@ -1,0 +1,1 @@
+node .harness/hooks/commit-msg.mjs "$1"

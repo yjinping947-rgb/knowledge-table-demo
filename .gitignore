@@ -7,3 +7,15 @@ out/
 !.env.example
 npm-debug.log*
 .DS_Store
+
+# build / cache
+tsconfig.tsbuildinfo
+
+# dev test artifacts (next.log / next.out / next.err / next.pid)
+next.log
+next.out
+next.err
+next.pid
+
+# agent scratch
+.mavis-trash/
