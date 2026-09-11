@@ -51,10 +51,21 @@
 
 ## 4. 技能 → 触发场景
 
+### 4a. 4 核心 skill（开发协作）
+
+- [`skills/commit-with-rationale.md`](./skills/commit-with-rationale.md) — **每次 commit 前**：写时间戳命名的 change report → 编码 → 端测 → commit
+- [`skills/deploy-app.md`](./skills/deploy-app.md) — **部署时**：本地生产 / CI / 云端三种模式 + 健康检查 + 回滚
+- [`skills/request-from-teammate.md`](./skills/request-from-teammate.md) — **跨角色协作**：扫别人需求 + 提需求给对应角色
+- [`skills/add-corpus.md`](./skills/add-corpus.md) — **加新语料**：写 `src/data/topics.json` + 跑 `npm run rag:build`
+
+### 4b. 4 辅助 skill（领域知识）
+
 - [`skills/write-seat-reply.md`](./skills/write-seat-reply.md) — 为某个席位写 reply 时
 - [`skills/generate-summary-map.md`](./skills/generate-summary-map.md) — 生成 summary 的四个象限时
 - [`skills/author-fallback.md`](./skills/author-fallback.md) — 写兜底内容时
 - [`skills/write-change-report.md`](./skills/write-change-report.md) — 写变更报告时
+
+详见 [`../docs/contributing/skill-reference.md`](../docs/contributing/skill-reference.md) 总览。
 
 ## 5. 契约 → API 路由
 
@@ -72,7 +83,20 @@
 - `evals/branches.json` — 27 路径期望输出（与 `tests/core-branches.mjs` 对齐）
 - `tests/rooms-rag.mjs` — RAG 路径自动化（与 `contracts/answer.md` 对齐）
 
-## 8. 协作治理（.github/）
+## 8. 4 Human 角色（开发职责）
+
+> 跟 `.harness/agents/` 的 5 AI 角色是不同层。AI 角色是运行时契约，Human 角色是开发职责。
+
+| Human 角色 | owner 目录 | 关键 skill | 必读 |
+|---|---|---|---|
+| **agent-dev** | `src/lib/{ai,rag,fallback,prompts,validators,types.ts}` + `src/agents/` + `src/user/` | commit-with-rationale | [`roles/agent-dev.md`](./roles/agent-dev.md) |
+| **ui-design** | `src/client/` + `components/` + 4 个 frozen 资源 | commit-with-rationale | [`roles/ui-design.md`](./roles/ui-design.md) |
+| **feature-design** | `app/api/` + `.harness/contracts/` + `.harness/evals/` + `tests/` + `.github/workflows/` | commit-with-rationale + deploy-app | [`roles/feature-design.md`](./roles/feature-design.md) |
+| **corpus** | `src/data/` + `scripts/` | add-corpus + commit-with-rationale | [`roles/corpus.md`](./roles/corpus.md) |
+
+详见 [`../docs/contributing/cross-role-workflow.md`](../docs/contributing/cross-role-workflow.md) 协作工作流。
+
+## 9. 协作治理（.github/）
 
 | 文件 | 作用 | 责任 |
 |---|---|---|
@@ -85,15 +109,15 @@
 | `.github/workflows/ci.yml` | typecheck + lint + build + 27 路径 evals + 8 RAG 路径 | CI |
 | `.github/workflows/branch-name.yml` | PR 源分支名格式校验 | CI |
 
-> **review team 数 vs agent 角色数**：`.harness/agents/` 是 5 角色（运行时 / 契约层），`.github/CODEOWNERS` 是 3 team（review 路由层）。3 席位（action/realist/conditional）+ user 域合到 `seats-team`。详见 [`../docs/contributing/team-setup.md`](../docs/contributing/team-setup.md) 最后一节。
+> **review team 数 vs agent 角色数**：`.harness/agents/` 是 5 AI 角色（运行时 / 契约层），`.github/CODEOWNERS` 是 3 team（review 路由层），`.harness/roles/` 是 4 human 角色（开发职责）。3 层各管各的。详见 [`../docs/contributing/team-setup.md`](../docs/contributing/team-setup.md) 最后一节。
 
-## 9. 文档（docs/）
+## 10. 文档（docs/）
 
 | 路径 | 作用 |
 |---|---|
 | `docs/README.md` | 文档总目录 |
 | `docs/architecture/overview.md` | 架构概览 |
-| `docs/architecture/agents.md` | 5 角色系统 |
+| `docs/architecture/agents.md` | 5 AI 角色系统 |
 | `docs/architecture/harness.md` | 治理层详解 |
 | `docs/development/setup.md` | 本地开发 |
 | `docs/development/branching.md` | 分支规范 |
@@ -104,3 +128,6 @@
 | `docs/contributing/how-to-pr.md` | 怎么提 PR |
 | `docs/contributing/how-to-issue.md` | 怎么提 issue |
 | `docs/contributing/commit-conventions.md` | commit message 规范 |
+| `docs/contributing/team-setup.md` | GitHub Team 设置指南 |
+| `docs/contributing/cross-role-workflow.md` | 4 角色跨协作工作流 |
+| `docs/contributing/skill-reference.md` | 4 skill 总览 |

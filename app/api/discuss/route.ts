@@ -51,15 +51,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...buildFallback(input), mode: "fallback" as const });
   }
 
-  // 1. embedding
+  // 1. embedding（缺 key 时拿不到 vec，retrieveFromTopics 会退化为 keyword + authorityLevel 排序）
   const query = buildQuery(input);
   const queryVec = await embedQuery(query);
-  if (!queryVec) {
-    return NextResponse.json({ ...buildFallback(input), mode: "fallback" as const });
-  }
 
-  // 2. RAG 检索（限定 topicId=T01 + seat）
-  const top = await retrieveFromTopics(queryVec, { topicId: TOPIC_ID, seat }, 3);
+  // 2. RAG 检索（限定 topicId=T01 + seat）。queryVec 缺失时仍可走 fallback 关键词排序。
+  const top = await retrieveFromTopics(
+    queryVec,
+    { topicId: TOPIC_ID, seat },
+    3,
+    { firstChoice: input.firstChoice, secondChoice: input.secondChoice ?? undefined, round: input.round },
+  );
   if (top.length === 0) {
     return NextResponse.json({ ...buildFallback(input), mode: "fallback" as const });
   }

@@ -11,6 +11,45 @@
 - `/api/answer` 加 Zod 校验（`src/lib/validators/answer.ts`）
 - 27 路径测试在 RAG 模式下加 lock 模式（`AI_API_KEY=disabled` 时跑）
 - `lint-staged` 启用后跑一遍 lint:fix 看真实提速
+- 建 4 个 GitHub team（agent-dev / ui-design / feature-design / corpus）映射到 CODEOWNERS
+
+## [1.3.0] - 2026-09-12
+
+### Skills（4 个核心）
+
+- 加 `.harness/skills/commit-with-rationale.md` — 写变更前预期 → 编码 → 端测 → 写变更后端测效果 → commit
+  - 时间戳命名：`docs/change-reports/YYYY-MM-DD-HHMM-<slug>.md`
+- 加 `.harness/skills/deploy-app.md` — 4 种模式（dev / local-prod / CI / cloud）+ 健康检查 + 回滚
+- 加 `.harness/skills/request-from-teammate.md` — 跨角色协作（扫需求 + 提需求 + 4 角色路由表）
+- 加 `.harness/skills/add-corpus.md` — 写 `src/data/topics.json` + 跑 `npm run rag:build` + 验证
+
+### 角色（4 个 human team）
+
+- 加 `.harness/roles/agent-dev.md` — Agent 运行时开发
+- 加 `.harness/roles/ui-design.md` — UI 设计
+- 加 `.harness/roles/feature-design.md` — 功能设计
+- 加 `.harness/roles/corpus.md` — 语料收集
+
+### 文档
+
+- 加 `docs/contributing/skill-reference.md` — 4 skill 总览 + 关系图
+- 加 `docs/contributing/cross-role-workflow.md` — 4 角色如何协作 + 典型工作流 + review 矩阵
+
+### Harness 更新
+
+- 改 `.harness/AGENTS.md` — 改第 1 节（项目一句话：RAG 真实内容）+ 加第 6 节"4 核心 skill" + 加第 7 节"5 AI 角色 + 4 Human 角色"
+- 改 `.harness/INDEX.md` — 拆第 4 节为 4a（核心 skill）+ 4b（辅助 skill）+ 加第 8 节"4 Human 角色"
+
+### Bug 修复
+
+- 修 `src/lib/rag/index.ts` 导出 topics 模块函数（`loadTopics` / `retrieveFromTopics` 等）
+- 补 `src/lib/rag/topics.ts` 实现（之前 b8e564f commit 漏了）
+- 修 `package.json` 的 `rag:build` 脚本路径（`modules/corpus/scripts/` → `scripts/`，因为 scripts 没真移到 modules/）
+- 修 `.gitignore` 加 `src/data/topic-embeddings.json` + `.tmp/` + `*.log` + `verify-*.txt`
+
+Refs:
+- [`b8e564f`](https://github.com/MiniMax/knowledge-table-demo/commit/b8e564f) — refactor(rag): KnowledgeTable 三轮对话用 RAG 库真实回答
+- `docs/change-reports/2026-09-12-0400-skills-and-roles.md`（本版本）
 
 ## [1.1.1] - 2026-09-12
 

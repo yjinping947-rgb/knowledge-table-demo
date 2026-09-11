@@ -40,8 +40,8 @@ export async function POST(request: Request) {
     });
   }
 
-  // 4 个字段：每个从不同 seat 拉一条真实回答
-  const seats: SeatId[] = ["conditional", "realist", "action", "conditional"];
+  // 4 个字段：每个从不同 seat 拉一条真实回答（避免重复）
+  const seats: SeatId[] = ["conditional", "realist", "action", "realist"];
   const queries = [
     `${query} 共识`,
     `${query} 分歧`,
