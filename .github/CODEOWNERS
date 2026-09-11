@@ -1,56 +1,66 @@
 # .github/CODEOWNERS
-# 把代码按"业务关注点"分 3 个 team 路由 review。对标 Vue / Next.js / Supabase 的 CODEOWNERS 模式。
+# 把代码按"开发职责"分 4 个 team 路由 review。
+# 角色定义见 .harness/roles/<role>.md（agent-dev / ui-design / feature-design / corpus）。
 #
-# 注意：这里 3 团队是 review 路由层；.harness/agents/ 下仍然是 5 角色（director + 3 席位 + user），
-# 那是运行时 / 契约层，不要混。3 席位（action/realist/conditional）+ user 域合到同一个 seats-team 是因为
-# 这 4 个 agent 角色各自只有 2-3 个文件，单独立 team admin 成本太高，seats-team 的人 review 全部即可。
+# GitHub Team 的 handle 是占位（@MiniMax/<role>-team），组织里建好同名 team 即可生效。
+# 用 `node scripts/setup-teams.mjs create` 一键建好。
 #
-# 团队定义（占位 handle，组织里建好同名 team 即可生效）：
-# - @MiniMax/maintainers   — 兜底 + frozen 资源 + 治理层
-# - @MiniMax/director-team — 业务编排（director agent + 客户端 + 基础设施）
-# - @MiniMax/seats-team    — 3 席位（action/realist/conditional）+ 用户域
+# 跟 .harness/agents/ 的 5 AI 角色（director / action / realist / conditional / user）是不同层：
+# - 5 AI 角色 = 运行时 / 契约层
+# - 4 human team = review 路由 / admin 层
+# 详见 docs/contributing/cross-role-workflow.md 最后一节。
 
 # —— 默认兜底 ——
 *                                          @MiniMax/maintainers
 
-# —— 业务编排（director）——
-/app/                                      @MiniMax/director-team
-/src/agents/director/                      @MiniMax/director-team
-/src/client/                               @MiniMax/director-team
-/src/lib/                                  @MiniMax/director-team
-/src/data/                                 @MiniMax/director-team
-/components/                               @MiniMax/director-team
-/tests/                                    @MiniMax/director-team
-/scripts/                                  @MiniMax/director-team
-/.harness/contracts/                       @MiniMax/director-team
-/.harness/evals/                           @MiniMax/director-team
+# —— Agent 运行时开发（agent-dev）——
+# 5 AI 角色运行时 + SDK 基础设施 + RAG pipeline
+/app/api/                                 @MiniMax/agent-dev
+/src/agents/director/                     @MiniMax/agent-dev
+/src/agents/action/                       @MiniMax/agent-dev
+/src/agents/realist/                      @MiniMax/agent-dev
+/src/agents/conditional/                  @MiniMax/agent-dev
+/src/user/                                @MiniMax/agent-dev
+/src/lib/ai/                              @MiniMax/agent-dev
+/src/lib/rag/                             @MiniMax/agent-dev
+/src/lib/prompts/                         @MiniMax/agent-dev
+/src/lib/fallback/                        @MiniMax/agent-dev
+/src/lib/validators/                      @MiniMax/agent-dev
+/src/lib/types.ts                         @MiniMax/agent-dev
+/.harness/agents/                         @MiniMax/agent-dev
 
-# —— 3 席位 + 用户域（合并到 seats-team）——
-/src/agents/action/                        @MiniMax/seats-team
-/src/agents/realist/                       @MiniMax/seats-team
-/src/agents/conditional/                   @MiniMax/seats-team
-/src/user/                                 @MiniMax/seats-team
-/src/lib/prompts/seats/                    @MiniMax/seats-team
-/.harness/agents/action.md                 @MiniMax/seats-team
-/.harness/agents/realist.md                @MiniMax/seats-team
-/.harness/agents/conditional.md            @MiniMax/seats-team
-/.harness/agents/user.md                   @MiniMax/seats-team
+# —— UI 设计（ui-design）——
+/src/client/                              @MiniMax/ui-design
+/components/                              @MiniMax/ui-design
 
-# —— 治理层（harness）—— 改这些文件必须 director + 至少一个 maintainer review ——
-/.harness/AGENTS.md                        @MiniMax/maintainers @MiniMax/director-team
-/.harness/INDEX.md                         @MiniMax/maintainers @MiniMax/director-team
-/.harness/rules/                           @MiniMax/maintainers
-/.harness/skills/                          @MiniMax/maintainers
-/.harness/hooks/                           @MiniMax/maintainers
+# —— 功能设计（feature-design）——
+# API 路由 + 契约 + 评估 + 跨模块测试 + CI workflow
+/app/api/                                 @MiniMax/feature-design
+/.harness/contracts/                      @MiniMax/feature-design
+/.harness/evals/                          @MiniMax/feature-design
+/tests/                                   @MiniMax/feature-design
+/.github/workflows/                       @MiniMax/feature-design
+
+# —— 语料收集（corpus）——
+# 数据 JSON + 采集 / embedding 脚本
+/src/data/                                @MiniMax/corpus
+/scripts/                                 @MiniMax/corpus
+
+# —— 治理层（harness + 协作）—— maintainers 兜底 ——
+/.harness/AGENTS.md                       @MiniMax/maintainers
+/.harness/INDEX.md                        @MiniMax/maintainers
+/.harness/roles/                          @MiniMax/maintainers
+/.harness/rules/                          @MiniMax/maintainers
+/.harness/skills/                         @MiniMax/maintainers
+/.harness/hooks/                          @MiniMax/maintainers
 
 # —— 冻结资源 ——
-/app/globals.css                           @MiniMax/maintainers
-/app/layout.tsx                            @MiniMax/maintainers
-/app/page.tsx                              @MiniMax/maintainers
-/public/assets/                            @MiniMax/maintainers
+/app/globals.css                          @MiniMax/maintainers
+/app/layout.tsx                           @MiniMax/maintainers
+/app/page.tsx                             @MiniMax/maintainers
+/public/assets/                           @MiniMax/maintainers
 
-# —— CI / 依赖 ——
-/.github/workflows/                        @MiniMax/maintainers
-/.github/dependabot.yml                    @MiniMax/maintainers
-/package.json                              @MiniMax/maintainers
-/package-lock.json                         @MiniMax/maintainers
+# —— 依赖 / 配置 ——
+/package.json                             @MiniMax/maintainers
+/package-lock.json                        @MiniMax/maintainers
+/.github/dependabot.yml                   @MiniMax/maintainers

@@ -89,12 +89,20 @@
 
 | Human 角色 | owner 目录 | 关键 skill | 必读 |
 |---|---|---|---|
-| **agent-dev** | `src/lib/{ai,rag,fallback,prompts,validators,types.ts}` + `src/agents/` + `src/user/` | commit-with-rationale | [`roles/agent-dev.md`](./roles/agent-dev.md) |
+| **agent-dev** | `src/agents/` + `src/user/` + `src/lib/{ai,rag,prompts,fallback,validators,types.ts}` + `app/api/` + `.harness/agents/` | commit-with-rationale | [`roles/agent-dev.md`](./roles/agent-dev.md) |
 | **ui-design** | `src/client/` + `components/` + 4 个 frozen 资源 | commit-with-rationale | [`roles/ui-design.md`](./roles/ui-design.md) |
 | **feature-design** | `app/api/` + `.harness/contracts/` + `.harness/evals/` + `tests/` + `.github/workflows/` | commit-with-rationale + deploy-app | [`roles/feature-design.md`](./roles/feature-design.md) |
 | **corpus** | `src/data/` + `scripts/` | add-corpus + commit-with-rationale | [`roles/corpus.md`](./roles/corpus.md) |
 
-详见 [`../docs/contributing/cross-role-workflow.md`](../docs/contributing/cross-role-workflow.md) 协作工作流。
+**对应 GitHub Team**（用 `node scripts/setup-teams.mjs create` 一键建）：
+
+- `agent-dev` → `@MiniMax/agent-dev`
+- `ui-design` → `@MiniMax/ui-design`
+- `feature-design` → `@MiniMax/feature-design`
+- `corpus` → `@MiniMax/corpus`
+- 兜底 → `@MiniMax/maintainers`
+
+详见 [`../docs/contributing/team-setup.md`](../docs/contributing/team-setup.md) 完整设置流程。
 
 ## 9. 协作治理（.github/）
 
@@ -104,12 +112,17 @@
 | `.github/ISSUE_TEMPLATE/bug.md` | bug 报告模板 | reporter |
 | `.github/ISSUE_TEMPLATE/feature.md` | feature 请求模板 | reporter |
 | `.github/ISSUE_TEMPLATE/config.yml` | issue chooser 配置 | director |
-| `.github/CODEOWNERS` | 3 团队 reviewer 自动路由（maintainers / director-team / seats-team） | CODEOWNERS 团队 |
+| `.github/CODEOWNERS` | 4 human team reviewer 自动路由（maintainers / agent-dev / ui-design / feature-design / corpus） | CODEOWNERS 团队 |
 | `.github/dependabot.yml` | 自动依赖升级（next/react/zod 分组） | dependabot |
 | `.github/workflows/ci.yml` | typecheck + lint + build + 27 路径 evals + 8 RAG 路径 | CI |
 | `.github/workflows/branch-name.yml` | PR 源分支名格式校验 | CI |
 
-> **review team 数 vs agent 角色数**：`.harness/agents/` 是 5 AI 角色（运行时 / 契约层），`.github/CODEOWNERS` 是 3 team（review 路由层），`.harness/roles/` 是 4 human 角色（开发职责）。3 层各管各的。详见 [`../docs/contributing/team-setup.md`](../docs/contributing/team-setup.md) 最后一节。
+> **3 层各管各的**：
+> - `.harness/agents/` = 5 AI 角色（运行时 / 契约层）
+> - `.harness/roles/` = 4 human 角色（开发职责）
+> - `.github/CODEOWNERS` = 4 team（review 路由层）
+>
+> 数量巧合是 5 / 4 / 4，但意义完全不同。详见 [`../docs/contributing/team-setup.md`](../docs/contributing/team-setup.md) 最后一节。
 
 ## 10. 文档（docs/）
 
