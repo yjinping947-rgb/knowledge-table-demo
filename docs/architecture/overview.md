@@ -4,7 +4,7 @@
 
 ## 一句话
 
-围绕"年轻人该不该裸辞？"做两轮 AI 结构化讨论 demo。三个观点席位（行动 / 现实 / 条件）由多篇相似回答融合，并非真实答主。
+围绕"年轻人该不该裸辞？"做两轮 AI 结构化讨论 demo。三个观点席位（行动 / 现实 / 条件）由多篇相似回答融合，并非真实答主。P1 扩展到 20 房间 RAG demo：每个房间对应一条知乎问答，用户进房间问问题，RAG 检索该答主语料生成回答。
 
 ## 角色系统
 
@@ -56,13 +56,24 @@
 │ app/              Next.js App Router     │ ← 薄壳（仅 route.ts + layout/page/css）
 ├─────────────────────────────────────────┤
 │ src/client/       前端 state + stages    │ ← React + CSS（55 class 冻结）
+│   ├─ knowledge-table/  ← 主 demo（2 轮讨论）
+│   ├─ rooms/            ← 20 房间网格 + 详情页
+│   └─ rooms-app/        ← 房间应用入口
 │ src/agents/       4 个 agent 运行时      │ ← director + 3 席位
 ├─────────────────────────────────────────┤
 │ src/lib/          基础设施                │ ← ai / fallback / prompts / rag / validators
-│ src/data/         本地数据（type/sources） │ ← JSON + 类型化导出
+│ src/data/         本地数据（type/sources） │ ← JSON + 类型化导出（topic / seats / sources / rooms / rag-corpus / rag-embeddings）
 │ src/user/         用户域抽象类型          │ ← UserSession / Trajectory
 └─────────────────────────────────────────┘
 ```
+
+## API 路由
+
+| 路由 | 方法 | 契约 | 用途 |
+|---|---|---|---|
+| `/api/discuss` | POST | `.harness/contracts/discuss.md` | 2 轮讨论（director 路由 + 席位回应） |
+| `/api/summary` | POST | `.harness/contracts/summary.md` | 讨论地图（4 象限 + trajectory） |
+| `/api/answer` | POST / GET | `.harness/contracts/answer.md` | 20 房间 RAG 问答 |
 
 ## 治理层
 
@@ -75,6 +86,7 @@
 55 个 CSS class、8 个 stage 状态机、3 个 API 路由、4 个 agent、9 条来源、3 段 trajectory label —— 都是"冻结"的。任何变更必须先读对应规则：
 
 - UI（class / stage）→ `.harness/rules/ui-invariance.md`
-- API 路由 → `.harness/contracts/{discuss,summary}.md`
+- API 路由 → `.harness/contracts/{discuss,summary,answer}.md`
 - 席位 prompt → `.harness/agents/{action,realist,conditional}.md`
 - 提交规范 → `.harness/rules/commit-policy.md`
+- 分支规范 → `.harness/rules/branch-policy.md`

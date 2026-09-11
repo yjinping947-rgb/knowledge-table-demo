@@ -59,6 +59,13 @@
 - **不编造**：禁止编造个人经历、公司、数字、来源
 - **sourceIds 必须落在绑定列表内**：hard constraint，详见 `.harness/contracts/discuss.md`
 
+## RAG 房间 Agent（实验性）
+
+P1 阶段扩展：20 房间 demo 中每个房间有一个"房间专属 Agent"（人设来自该答主语料）。实现不在 `src/agents/` 里，而在 `src/lib/rag/pipeline.ts` 的 `buildRoomSystemPrompt()` 函数 — 把答主 excerpt 注入 system prompt，强制 `top[0]` 是该答主语料。详见：
+
+- [`.harness/contracts/answer.md`](../../.harness/contracts/answer.md)
+- [`../change-reports/2026-09-12-rooms.md`](../change-reports/2026-09-12-rooms.md)
+
 ## 兜底链路
 
 `mode: "fallback"` 出现的场景：

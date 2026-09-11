@@ -50,6 +50,9 @@ jobs:
       - name: Run evals (27 paths + invalid input)
         run: node tests/core-branches.mjs
 
+      - name: Run RAG path tests (20 rooms + question + roomId)
+        run: node tests/rooms-rag.mjs
+
       - name: Stop server
         if: always()
         run: kill $(cat next.pid) 2>/dev/null || true

@@ -1,0 +1,61 @@
+# .github/workflows/branch-name.yml
+# PR 源分支名格式校验。对标 Vue / Nuxt / 各种 conventional-branch 实践。
+# 详见 .harness/rules/branch-policy.md
+name: Branch Name
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+jobs:
+  check:
+    name: Validate branch name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check branch name
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          echo "Checking branch: $BRANCH"
+
+          # main / develop / release/* 不校验
+          if [[ "$BRANCH" == "main" || "$BRANCH" == "develop" || "$BRANCH" == release/* ]]; then
+            echo "Branch $BRANCH is exempt from naming convention"
+            exit 0
+          fi
+
+          # 格式：<type>/<scope>-<short-desc>
+          # type ∈ {feat, fix, refactor, test, docs, chore, style, perf, ci, revert}
+          # scope: kebab-case
+          # short-desc: kebab-case
+          REGEX='^(feat|fix|refactor|test|docs|chore|style|perf|ci|revert)/[a-z][a-z0-9-]*-[a-z0-9-]+$'
+
+          if [[ ! "$BRANCH" =~ $REGEX ]]; then
+            echo "::error::Branch name '$BRANCH' does not match the required pattern"
+            echo ""
+            echo "Required: <type>/<scope>-<short-desc>"
+            echo "Examples:"
+            echo "  feat/harness-add-pr-template"
+            echo "  fix/director-router-fallback"
+            echo "  refactor/client-split-stages"
+            echo "  docs/architecture-overview"
+            echo "  chore/deps-bump-next-16"
+            echo ""
+            echo "Type must be one of: feat fix refactor test docs chore style perf ci revert"
+            echo "Scope and short-desc must be kebab-case (lowercase, digits, hyphens)"
+            echo "See .harness/rules/branch-policy.md for details"
+            exit 1
+          fi
+
+          # 长度上限
+          if [[ ${#BRANCH} -gt 60 ]]; then
+            echo "::error::Branch name '$BRANCH' is ${#BRANCH} chars (max 60)"
+            exit 1
+          fi
+
+          echo "Branch name '$BRANCH' is valid ✓"

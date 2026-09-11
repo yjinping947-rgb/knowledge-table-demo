@@ -60,16 +60,17 @@
 
 - [`contracts/discuss.md`](./contracts/discuss.md) — `app/api/discuss/route.ts`
 - [`contracts/summary.md`](./contracts/summary.md) — `app/api/summary/route.ts`
-- `app/api/answer/route.ts` — RAG 房间问答（暂无 harness 契约，详见 `docs/change-reports/2026-09-12-rooms.md`）
+- [`contracts/answer.md`](./contracts/answer.md) — `app/api/answer/route.ts`（RAG 房间问答）
 
 ## 6. 钩子 → git 阶段
 
-- `hooks/pre-commit.mjs` — pre-commit 阶段跑 lint + test
+- `hooks/pre-commit.mjs` — pre-commit 阶段跑 lint-staged + test
 - `hooks/commit-msg.mjs` — commit-msg 阶段跑 commitlint
 
 ## 7. 评测 → 路径
 
 - `evals/branches.json` — 27 路径期望输出（与 `tests/core-branches.mjs` 对齐）
+- `tests/rooms-rag.mjs` — RAG 路径自动化（与 `contracts/answer.md` 对齐）
 
 ## 8. 协作治理（.github/）
 
