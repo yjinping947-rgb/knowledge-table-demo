@@ -52,6 +52,27 @@ npm run test:rag     # 8 RAG 路径
 npm run test:all     # 全部
 ```
 
+### 一键全检查（推荐）
+
+部署前**只跑一条命令**就能跑完 lint + typecheck + build + 测试：
+
+```bash
+# 1. 加这个脚本到 package.json（首次设置）
+#    "check:all": "npm run lint && npm run typecheck && npm run build"
+
+# 2. 部署前跑
+npm run check:all
+# 等价于：
+#   npm run lint      # eslint
+#   npm run typecheck  # tsc --noEmit
+#   npm run build      # next build（含运行 TS 校验）
+#   npm run test:all   # 27 路径 + 8 RAG（需要先 npm run start）
+```
+
+> 实战经验：手动跑 4 个独立命令（lint / typecheck / build / test:all）太烦，封装成 `check:all` 一键搞定。
+
+> ⚠️ `test:all` 需要 `npm run start` 跑生产服务。如果只是想验证代码（不开服务），用 `npm run test`（单元测试，本项目无 .test.mjs 文件）即可。
+
 Windows 后台启动（写 next.out / next.err 日志）：
 
 ```powershell

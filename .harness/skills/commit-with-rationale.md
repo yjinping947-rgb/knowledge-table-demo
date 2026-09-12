@@ -32,6 +32,53 @@ FILE="docs/change-reports/${TIMESTAMP}-${SLUG}.md"
 - **改了什么**（边改边补）
 - **变更后端测效果**（改完跑完测试写）
 
+### Step 1.5: 选报告模式
+
+按改动规模选：
+
+| 模式 | 何时用 | 内容 |
+|---|---|---|
+| **Full**（标准）| 跨模块 / 改 API / 改 frozen / 大重构 | 上面 3 段 + 风险 + 回滚 + 后续 TODO + 关系链接（~80-150 行）|
+| **Minimal**（小改动）| 改 docs / 改 skill / 改 governance / bug fix 单文件 | 3 段就够（~30-60 行）|
+
+**Minimal 模式模板**（直接复制）：
+
+```markdown
+# <一句话变更主题>
+
+| 字段 | 值 |
+|---|---|
+| 日期 | YYYY-MM-DD |
+| 时间戳 | HH-MM |
+| 作者 | @<handle> |
+
+## 变更前预期
+
+- 用户行为：<什么会变 / 不会变>
+- 数据 / API：<什么会变 / 不会变>
+- 兼容性：<破坏 / 向后兼容>
+
+## 改了什么
+
+- <path1>：<改了啥>
+- <path2>：<改了啥>
+
+## 变更后端测效果
+
+- `npm run lint`：<0 warnings | N warnings>
+- `npm run build`：<通过 | 失败 + 原因>
+- `node tests/<test>.mjs`：<PASS: ... | FAIL: ...>
+
+## 风险 / 回滚
+
+- 风险：<简述>
+- 回滚：`git revert <commit>`
+```
+
+> 实战经验：Minimal 模式 80% 的情况够用，Full 模式 20%（跨模块 / 改 API / 大重构）。
+
+### 2. 编码
+
 ### 2. 编码
 
 按 `.harness/INDEX.md` 第 1 节"模块 → owner"确认你的 scope，按对应 `.harness/agents/*.md` / `.harness/rules/*.md` 约束改。

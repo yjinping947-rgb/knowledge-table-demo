@@ -72,6 +72,19 @@ gh pr list --label "needs-<your-role>-review" --state open
 Refs docs/change-reports/2026-09-12-1430-fix-router-fallback.md
 ```
 
+### Step 4.5: 选 workflow 模式
+
+根据改动规模和协作人数选模式：
+
+| 模式 | 何时用 | 怎么做 | 例子 |
+|---|---|---|---|
+| **Multi-PR**（标准）| 大功能 / 跨 3+ 角色 / 多人协作 | 每个角色一个 PR + 关联 issue | 加新赛季：corpus 加语料 PR + feature-design 加 API PR + ui-design 加前端 PR |
+| **Single-PR**（快速）| 小到中改动 / 1-2 角色 / 1 人主导 | 一个 PR 完成多角色工作，PR 描述列各角色贡献 | 加 T21 9 条样本：corpus 自己直接 commit + 数据 API 同 PR |
+| **Issue first**（探索）| 不确定方案 / 需讨论 | 先开 issue 收集意见 → 共识后开 PR | "AI 取代程序员"加多少条语料合适 |
+
+> 实战经验：3 派 × 3 条 = 9 条样本的小改动，**Single-PR 够用**。30+ 条 / 跨 3 角色 / 加新组件 → Multi-PR。
+> 关键判断：你的改动**能不能一个人一次 commit 搞定**。能 → Single-PR；不能 → Multi-PR + issue 跟踪。
+
 ### Step 5: 跟踪
 
 - **你提的需求**：用 `gh issue list --author=@me --state open` 看进度
