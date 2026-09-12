@@ -1,0 +1,76 @@
+{
+  "_comment": "赛季元数据。每个赛季是一组相关辩题（5 个），复用 src/data/topics.json 已有 20 话题作为语料池。",
+  "_docs": "https://github.com/MiniMax/knowledge-table-demo/blob/main/docs/contributing/add-corpus.md",
+
+  "S01": {
+    "id": "S01",
+    "title": "AI 取代程序员",
+    "subtitle": "AI 会取代程序员吗？",
+    "description": "加速派 vs 审慎派的经典交锋：效率提升 vs 岗位收缩",
+    "tags": ["科技", "未来"],
+    "color": "blue",
+    "period": "9.04 - 9.11",
+    "topicIds": ["T01", "T02", "T03", "T04", "T05"],
+    "limitedCards": [
+      { "id": "C01", "name": "AI 协作", "collected": true },
+      { "id": "C02", "name": "代码生成", "collected": true },
+      { "id": "C03", "name": "Debug 助手", "collected": true },
+      { "id": "C04", "name": "架构师", "collected": false },
+      { "id": "C05", "name": "技术领导", "collected": false }
+    ]
+  },
+
+  "S02": {
+    "id": "S02",
+    "title": "AI 伦理",
+    "subtitle": "算法偏见 / 数据隐私 / 责任归属",
+    "description": "AI 系统的伦理边界：谁该为 AI 决策负责？",
+    "tags": ["伦理", "社会"],
+    "color": "red",
+    "period": "9.11 - 9.18",
+    "topicIds": ["T06", "T07", "T08", "T09", "T10"],
+    "limitedCards": [
+      { "id": "C06", "name": "算法偏见", "collected": true },
+      { "id": "C07", "name": "数据隐私", "collected": true },
+      { "id": "C08", "name": "责任归属", "collected": true },
+      { "id": "C09", "name": "未解之谜", "collected": false },
+      { "id": "C10", "name": "AI 哲学", "collected": false }
+    ]
+  },
+
+  "S03": {
+    "id": "S03",
+    "title": "全民基本收入",
+    "subtitle": "AI 时代该不该发钱？",
+    "description": "经济重组 vs 福利体系：UBI 是否是答案？",
+    "tags": ["社会", "经济"],
+    "color": "green",
+    "period": "9.18 - 9.25",
+    "topicIds": ["T11", "T12", "T13", "T14", "T15"],
+    "limitedCards": [
+      { "id": "C11", "name": "技术失业", "collected": false },
+      { "id": "C12", "name": "再分配", "collected": false },
+      { "id": "C13", "name": "消费拉动", "collected": false },
+      { "id": "C14", "name": "福利依赖", "collected": false },
+      { "id": "C15", "name": "市场失灵", "collected": false }
+    ]
+  },
+
+  "S04": {
+    "id": "S04",
+    "title": "游戏是第九艺术吗",
+    "subtitle": "游戏 / 文化 / 艺术 / 互动",
+    "description": "游戏作为艺术形式：叙事 / 美学 / 互动的独特性",
+    "tags": ["文化", "艺术"],
+    "color": "blue",
+    "period": "9.25 - 10.02",
+    "topicIds": ["T16", "T17", "T18", "T19", "T20"],
+    "limitedCards": [
+      { "id": "C16", "name": "叙事艺术", "collected": false },
+      { "id": "C17", "name": "互动美学", "collected": false },
+      { "id": "C18", "name": "游戏化", "collected": false },
+      { "id": "C19", "name": "第九艺术", "collected": false },
+      { "id": "C20", "name": "沉浸式", "collected": false }
+    ]
+  }
+}

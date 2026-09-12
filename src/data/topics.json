@@ -11988,5 +11988,107 @@
         }
       ]
     }
+  },
+  "T21": {
+    "id": "T21",
+    "title": "AI 取代程序员",
+    "seats": {
+      "action": [
+        {
+          "contentId": "demo-ai-prog-action-001",
+          "title": "AI 协作才是未来",
+          "author": "加速派 A1",
+          "contentText": "说'取代'是过度焦虑。AI 真正改变的是协作模式：开发者用 Copilot/Cursor 写 80% 重复代码，专注 20% 核心设计。淘汰的不是'程序员'，是不会用 AI 的程序员。",
+          "url": "https://www.zhihu.com/question/ai-programmer-001?utm=openai_platform",
+          "voteUpCount": 1240,
+          "commentCount": 87,
+          "authorityLevel": "4"
+        },
+        {
+          "contentId": "demo-ai-prog-action-002",
+          "title": "工具换了，岗位升级了",
+          "author": "加速派 A2",
+          "contentText": "从汇编 → C → Java → Python → AI 编程，每一次工具革命都让程序员更值钱而不是消失。AI 编程让初级岗位收缩但架构师需求暴增——本质是技术栈升级，不是职业消失。",
+          "url": "https://www.zhihu.com/question/ai-programmer-002?utm=openai_platform",
+          "voteUpCount": 856,
+          "commentCount": 142,
+          "authorityLevel": "3"
+        },
+        {
+          "contentId": "demo-ai-prog-action-003",
+          "title": "效率提升 = 价值提升",
+          "author": "加速派 A3",
+          "contentText": "AI 把单个程序员的产出提升 5-10 倍，但软件需求不是恒定的——能做的项目边界被大幅扩展。从 CRUD 到 AI 集成，从单系统到智能体编排，蛋糕在变大不是变小。",
+          "url": "https://www.zhihu.com/question/ai-programmer-003?utm=openai_platform",
+          "voteUpCount": 2103,
+          "commentCount": 195,
+          "authorityLevel": "5"
+        }
+      ],
+      "realist": [
+        {
+          "contentId": "demo-ai-prog-realist-001",
+          "title": "初级岗位确实在收缩",
+          "author": "审慎派 B1",
+          "contentText": "招聘数据不会撒谎：2024 年初级程序员岗位减少 30%，AI 已经能完成 70% 初级任务。不要说'司机还在'，1900 年代马车被取代时，30% 马车夫失业用了整整一代人。",
+          "url": "https://www.zhihu.com/question/ai-programmer-004?utm=openai_platform",
+          "voteUpCount": 1567,
+          "commentCount": 234,
+          "authorityLevel": "4"
+        },
+        {
+          "contentId": "demo-ai-prog-realist-002",
+          "title": "不是所有转型都成功",
+          "author": "审慎派 B2",
+          "contentText": "汽车取代马车时，马车夫大多没变成汽车司机——他们失业了。AI 取代的不是'代码生成'，是'能被模板化的逻辑'，而这恰好是大多数入门级工作的核心。",
+          "url": "https://www.zhihu.com/question/ai-programmer-005?utm=openai_platform",
+          "voteUpCount": 923,
+          "commentCount": 178,
+          "authorityLevel": "3"
+        },
+        {
+          "contentId": "demo-ai-prog-realist-003",
+          "title": "35 岁困境会加剧",
+          "author": "审慎派 B3",
+          "contentText": "AI 降低了入门门槛但提高了高级门槛。35 岁的程序员如果技能停留在'写 CRUD'，被淘汰速度会比 00 后学得更快。市场不是为每个人升级的，社会需要回答再分配问题，不是只谈工具升级。",
+          "url": "https://www.zhihu.com/question/ai-programmer-006?utm=openai_platform",
+          "voteUpCount": 1820,
+          "commentCount": 312,
+          "authorityLevel": "5"
+        }
+      ],
+      "conditional": [
+        {
+          "contentId": "demo-ai-prog-conditional-001",
+          "title": "看场景，别一刀切",
+          "author": "条件派 C1",
+          "contentText": "取代不取代取决于 4 个条件：业务复杂度、监管要求、创造性占比、容错容忍度。算法岗不会被取代（AI 也是算法的产物），但 SaaS 模板化开发岗确实危险。关键看你在哪个细分。",
+          "url": "https://www.zhihu.com/question/ai-programmer-007?utm=openai_platform",
+          "voteUpCount": 1145,
+          "commentCount": 156,
+          "authorityLevel": "4"
+        },
+        {
+          "contentId": "demo-ai-prog-conditional-002",
+          "title": "取代的是任务，不是职业",
+          "author": "条件派 C2",
+          "contentText": "程序员是一个职业，但里面有 30+ 种不同任务：需求分析、架构设计、编码、测试、运维、文档。AI 取代的是'编码'这个任务，但'程序员'这个职业的边界会重新定义——变成 AI 编排师 + 业务翻译官。",
+          "url": "https://www.zhihu.com/question/ai-programmer-008?utm=openai_platform",
+          "voteUpCount": 789,
+          "commentCount": 198,
+          "authorityLevel": "3"
+        },
+        {
+          "contentId": "demo-ai-prog-conditional-003",
+          "title": "5-10 年内不会消失，但会重塑",
+          "author": "条件派 C3",
+          "contentText": "短期内（5 年）AI 不会取代所有程序员——'信任 / 责任 / 合规'需要人。中期（10 年）会出现新型岗位：AI 训练师、提示工程师、模型审计师。长期看，整个职业形态会重塑，但不是简单的'消失'。",
+          "url": "https://www.zhihu.com/question/ai-programmer-009?utm=openai_platform",
+          "voteUpCount": 1432,
+          "commentCount": 267,
+          "authorityLevel": "4"
+        }
+      ]
+    }
   }
 }

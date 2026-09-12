@@ -1,0 +1,168 @@
+/* src/client/seasons/seasons.module.css */
+/* 赛季列表页样式（CSS Module）。跟 KnowledgeTable 55 class 冻结解耦——本文件新建独立作用域。 */
+
+.seasons-page {
+  min-height: 100vh;
+  background: var(--paper, #fffdf5);
+  padding: 32px 24px 64px;
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.seasons-loading {
+  min-height: 50vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #888;
+}
+
+.seasons-header {
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 3px solid #111;
+}
+
+.seasons-title {
+  font-size: 36px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.seasons-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.seasons-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.seasons-card {
+  background: #fff;
+  border: 2px solid #111;
+  padding: 20px;
+  cursor: pointer;
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+  box-shadow: 4px 4px 0 #111;
+}
+
+.seasons-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #111;
+}
+
+.seasons-card-active {
+  background: #fffbf0;
+}
+
+.seasons-card-red { border-left: 8px solid #d33; }
+.seasons-card-blue { border-left: 8px solid #36c; }
+.seasons-card-green { border-left: 8px solid #3a3; }
+
+.seasons-card-head {
+  margin-bottom: 12px;
+}
+
+.seasons-card-id {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #999;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.seasons-card-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: #111;
+}
+
+.seasons-card-subtitle {
+  font-size: 14px;
+  color: #555;
+  margin: 0;
+}
+
+.seasons-card-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  margin: 12px 0;
+}
+
+.seasons-card-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #ddd;
+  font-size: 12px;
+  color: #666;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seasons-card-tags {
+  display: flex;
+  gap: 6px;
+}
+
+.seasons-tag {
+  padding: 2px 8px;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  font-weight: 600;
+}
+
+.seasons-card-progress {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.seasons-card-actions {
+  width: 100%;
+  margin-top: 8px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.seasons-start-btn {
+  display: inline-block;
+  padding: 8px 20px;
+  background: #111;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  border: 2px solid #111;
+  box-shadow: 3px 3px 0 #111;
+  transition: transform 0.05s;
+}
+
+.seasons-start-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 #111;
+}
+
+.seasons-card-note {
+  font-size: 11px;
+  color: #999;
+  font-style: italic;
+}
+
+@media (min-width: 640px) {
+  .seasons-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
