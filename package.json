@@ -12,7 +12,8 @@
     "test": "node --test tests/*.test.mjs",
     "test:core": "node tests/core-branches.mjs",
     "test:rag": "node tests/rooms-rag.mjs",
-    "test:all": "node tests/core-branches.mjs && node tests/rooms-rag.mjs",
+    "test:rag-quality": "node tests/rag-quality.mjs",
+    "test:all": "node tests/core-branches.mjs && node tests/rooms-rag.mjs && node tests/rag-quality.mjs",
     "rag:build": "node scripts/collect-corpus-batch.mjs && node scripts/embed-topics.mjs",
     "rag:build-rooms": "node scripts/build-rooms.mjs",
     "prepare": "husky"

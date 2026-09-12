@@ -17,37 +17,51 @@
 
 校验见 `src/lib/validators/summary.ts`
 
-## 响应 200
+## 响应 200（RAG 模式）
 
 ```ts
 {
-  consensus: string;
-  disagreement: string;
-  hiddenAssumption: string;
-  trajectory: { before: string; during: string; after: string };
-  openQuestion: string;
+  consensus: string;              // 取 conditional seat top-1
+  disagreement: string;           // 取 realist seat top-1
+  hiddenAssumption: string;       // 取 action seat top-1
+  trajectory: {
+    before: string;               // 用户讨论前倾向
+    during: string;               // 在具体情境下选择
+    after: string;                 // 反思后立场
+  };
+  openQuestion: string;            // 取 conditional seat top-1（开放式问题）
+  sourceIds: string[];            // 4 条来源的 contentId
+  sourceUrls: string[];           // 4 条原文链接
+  authors: string[];              // 4 位答主
   mode: 'ai' | 'fallback';
 }
 ```
 
-## 响应 400
+## 数据流
 
-```ts
-{ error: '请求参数不完整' }
+```
+query = "年轻人该不该裸辞 {firstChoice} {secondChoice} 之后 {positionChange}"
+       ↓
+embedQuery(query)
+       ↓
+4 路并行 retrieveFromTopics(queryVec, { topicId: "T01", seat: S }, 1)
+  S ∈ {conditional, realist, action, conditional}
+       ↓
+每个字段取对应 seat 的 top-1
 ```
 
 ## 失败兜底
 
-- 缺 AI 配置 / 模型失败 → `getSummaryFallback` 返回
-- 同 [`contracts/discuss.md`](./discuss.md) 的失败兜底规则
+- 缺 `AI_API_KEY` / `AI_BASE_URL` → 调 `getSummaryFallback` 返回 mock
+- embedQuery 失败 → fallback
+- 部分 seat 缺数据 → 自动退到下一有数据的 seat
 
 ## 反约束
 
-- 不缓存响应
-- 不写数据库
-- 不返回密钥痕迹
-- `trajectory` 三段都来自 labels 表，不允许 LLM 自由发挥
+- 4 字段都从 RAG 库真实内容填（不是 LLM 生成）
+- trajectory 三段是固定模板（前/中/后）
+- `sourceIds` / `sourceUrls` / `authors` 数组长度等于实际找到的 source 数（可能少于 4）
 
-## 调用方
+## 依赖
 
-- `src/client/knowledge-table/` 的 `chooseReflection`
+- 与 discuss 相同（`src/data/topics.json` + `topic-embeddings.json` + `src/lib/rag/topics.ts`）

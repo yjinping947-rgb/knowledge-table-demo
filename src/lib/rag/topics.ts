@@ -54,6 +54,7 @@ const SECOND_KEYWORDS: Record<string, string[]> = {
 
 let cachedTopics: Record<string, Topic> | null = null;
 let cachedEmbeddings: TopicEmbedding[] | null = null;
+const cachedTopicsList: Array<{ id: string; title: string; sourceCount: number }> | null = null;
 
 export async function loadTopics(): Promise<Record<string, Topic>> {
   if (cachedTopics !== null) return cachedTopics;
@@ -63,9 +64,19 @@ export async function loadTopics(): Promise<Record<string, Topic>> {
   return raw;
 }
 
-export async function listTopics(): Promise<Topic[]> {
+export type TopicSummary = {
+  id: string;
+  title: string;
+  sourceCount: number;
+};
+
+export async function listTopics(): Promise<TopicSummary[]> {
   const topics = await loadTopics();
-  return Object.values(topics);
+  return Object.values(topics).map((t) => ({
+    id: t.id,
+    title: t.title,
+    sourceCount: t.seats.action.length + t.seats.realist.length + t.seats.conditional.length,
+  }));
 }
 
 export async function loadTopicEmbeddings(): Promise<TopicEmbedding[] | null> {
@@ -130,10 +141,10 @@ export async function retrieveFromTopics(
   }
 
   // 1) 尝试 embedding cosine
-  const embeddings = await loadTopicEmbeddings();
-  const filteredEmbeddings = embeddings && embeddings.length > 0
-    ? embeddings.filter((e) => e.topicId === filter.topicId && (!filter.seat || e.seat === filter.seat))
-    : [];
+  const embeddings = (await loadTopicEmbeddings()) ?? [];
+  const filteredEmbeddings = embeddings.filter(
+    (e) => e.topicId === filter.topicId && (!filter.seat || e.seat === filter.seat),
+  );
 
   if (queryVec && filteredEmbeddings.length > 0) {
     const scored = candidates
