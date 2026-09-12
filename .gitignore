@@ -30,3 +30,7 @@ src/data/rag-embeddings.json
 *.log
 verify-*.txt
 embed.log
+
+# local dev server launchers (per-machine, not part of project)
+start-devserver*.bat
+start-devserver*.sh
