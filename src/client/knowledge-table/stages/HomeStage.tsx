@@ -1,5 +1,7 @@
 // src/client/knowledge-table/stages/HomeStage.tsx
 
+"use client";
+
 import Image from "next/image";
 import { topic } from "@/data";
 

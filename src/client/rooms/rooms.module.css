@@ -292,3 +292,67 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Welcome 欢迎区 + quick replies */
+.roomWelcome {
+  text-align: center;
+  padding: 32px 0 24px;
+  border-bottom: 1px dashed #ccc;
+  margin-bottom: 12px;
+}
+
+.quickReplies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.quickReply {
+  background: #fff;
+  border: 1.5px solid var(--ink, #111);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.quickReply:hover:not(:disabled) {
+  background: var(--ink, #111);
+  color: #fff;
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--ink, #111);
+}
+
+.quickReply:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Chat 状态：error / pending */
+.chatError {
+  border-color: var(--red, #d94a45);
+  background: #fff5f4;
+}
+
+.retryBtn {
+  margin-top: 8px;
+  background: var(--red, #d94a45);
+  color: #fff;
+  border: 0;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chatPending {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.chatPending .chatText {
+  letter-spacing: 0.2em;
+}
