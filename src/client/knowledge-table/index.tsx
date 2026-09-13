@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useReducer } from "react";
+import { useReducer, useRef } from "react";
 import { seats, topic } from "@/data";
 import type {
   CollisionPoint,
@@ -50,6 +50,7 @@ export default function KnowledgeTable({
   topicTitle?: string;
 }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const followupRequestId = useRef(0);
   const currentTopic = discussionTopic(topicId, topicTitle);
   const generalStances = {
     action: "先行动再修正，别让犹豫把问题拖成更大的成本。",
@@ -190,12 +191,14 @@ export default function KnowledgeTable({
 
   const askFollowup = (seatId: SeatId) => {
     if (state.loading || seatId === "conditional") return;
+    followupRequestId.current += 1;
     dispatch({ type: "SET_FOLLOWUP", seatId, result: null });
   };
 
   const submitFollowup = async (question: string) => {
     if (state.loading || !state.followupSeatId) return;
     const seatId = state.followupSeatId;
+    const requestId = ++followupRequestId.current;
     dispatch({ type: "SET_LOADING", loading: true });
     try {
       const result = await postJSON<FollowupResult>("/api/followup", {
@@ -203,9 +206,13 @@ export default function KnowledgeTable({
         seatId,
         question,
       });
-      dispatch({ type: "SET_FOLLOWUP", seatId, result });
+      if (requestId === followupRequestId.current) {
+        dispatch({ type: "SET_FOLLOWUP", seatId, result });
+      }
     } finally {
-      dispatch({ type: "SET_LOADING", loading: false });
+      if (requestId === followupRequestId.current) {
+        dispatch({ type: "SET_LOADING", loading: false });
+      }
     }
   };
 
@@ -281,7 +288,10 @@ export default function KnowledgeTable({
                 result={state.followup}
                 loading={state.loading}
                 onSubmit={submitFollowup}
-                onBack={() => dispatch({ type: "SET_FOLLOWUP", seatId: null, result: null })}
+                onBack={() => {
+                  followupRequestId.current += 1;
+                  dispatch({ type: "SET_FOLLOWUP", seatId: null, result: null });
+                }}
               />
             ) : (
               <>

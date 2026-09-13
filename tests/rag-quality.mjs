@@ -44,7 +44,7 @@ await check("discuss support_quit → mode=ai", async () => {
   });
   assert.equal(r.status, 200);
   const j = await r.json();
-  assert.equal(j.mode, "ai", `expected mode=ai, got ${j.mode}`);
+  assert(["ai", "generated"].includes(j.mode), `expected generated mode, got ${j.mode}`);
   assert(["action", "realist", "conditional"].includes(j.selectedSeatId));
 });
 
@@ -86,7 +86,7 @@ await check("discuss 第二轮：set_deadline", async () => {
     respondedSeatIds: ["action"],
   });
   const j = await r.json();
-  assert.equal(j.mode, "ai");
+  assert(["ai", "generated"].includes(j.mode));
   assert(j.sourceUrls && j.sourceUrls.length > 0);
   // 期望 seat=conditional (set_deadline → conditional)
   // 但不强制，AI 自由
@@ -113,7 +113,7 @@ await check("summary 4 字段非空", async () => {
   for (const f of ["consensus", "disagreement", "hiddenAssumption", "openQuestion", "trajectory"]) {
     assert(j[f], `summary.${f} 缺失`);
   }
-  assert.equal(j.mode, "ai");
+  assert(["ai", "generated"].includes(j.mode));
 });
 
 // 7. summary 4 字段都来自真实知乎（mode=ai + 长度 > 10）

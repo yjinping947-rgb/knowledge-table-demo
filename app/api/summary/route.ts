@@ -7,6 +7,7 @@ import { summaryRequestSchema } from "@/lib/validators";
 import { embedQuery, retrieveFromTopics } from "@/lib/rag";
 import { loadTopics } from "@/lib/rag/topics";
 import { getSummaryFallback } from "@/lib/fallback";
+import { generateStructured } from "@/lib/session/rag";
 import type { FirstChoice, PositionChange, SecondChoice, SeatId } from "@/lib/types";
 
 function buildQuery(input: { firstChoice: FirstChoice; secondChoice: SecondChoice; positionChange: PositionChange }, topicTitle: string): string {
@@ -149,7 +150,7 @@ export async function POST(request: Request) {
     return `（来自「${r.top[0].author}」）${r.top[0].contentText.slice(0, 200)}`;
   };
 
-  const result = {
+  const retrievalResult = {
     consensus: pick(0),
     disagreement: pick(1),
     hiddenAssumption: pick(2),
@@ -163,6 +164,40 @@ export async function POST(request: Request) {
     sourceUrls: results.flatMap((r) => r.top.map((t) => t.url)),
     authors: results.flatMap((r) => r.top.map((t) => t.author)),
     mode: "ai" as const,
+  };
+  const generated = await generateStructured({
+    system: `你是知识拼桌的总结主持人。请基于用户选择、两席互质和真实知乎参考来源，整理一张不强迫用户下结论的讨论地图。
+不要把原文直接拼接成答案，要提炼为针对当前讨论的中文判断。每个字段 40-140 字。`,
+    user: `话题：${currentTopic.title}
+用户初始选择：${input.tendency ?? input.firstChoice}
+具体选择：${input.secondChoice}
+碰撞点：${input.collisionPoint ?? "未记录"}
+质疑：${input.challenge ?? "未记录"}
+回应：${input.response ?? "未记录"}
+确认的隐藏分歧：${input.confirmedDivergence ?? "未记录"}
+第三视角：${input.perspectiveName ?? "未邀请"} ${input.perspectiveReframe ?? ""}
+
+参考来源：
+${results.flatMap((item) => item.top.slice(0, 1).map((source) => `${source.title} · ${source.author}\n${source.contentText.slice(0, 700)}`)).join("\n\n")}
+
+返回 JSON：
+{"consensus":"共识","disagreement":"真正分歧","hiddenAssumption":"隐藏前提","openQuestion":"还没解决"}。`,
+    fallback: {
+      consensus: retrievalResult.consensus,
+      disagreement: retrievalResult.disagreement,
+      hiddenAssumption: retrievalResult.hiddenAssumption,
+      openQuestion: retrievalResult.openQuestion,
+    },
+  });
+  const generatedSummary = generated.value;
+  const hasValidSummary = generatedSummary && ["consensus", "disagreement", "hiddenAssumption", "openQuestion"].every(
+    (key) => typeof generatedSummary[key as keyof typeof generatedSummary] === "string" &&
+      generatedSummary[key as keyof typeof generatedSummary].trim().length > 0,
+  );
+  const result = {
+    ...retrievalResult,
+    ...(hasValidSummary ? generatedSummary : {}),
+    mode: hasValidSummary ? generated.mode : "fallback" as const,
   };
   if (input.flow !== "knowledge-table-v2") return NextResponse.json(result);
 

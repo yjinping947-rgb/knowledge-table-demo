@@ -1,12 +1,12 @@
 // app/api/discuss/route.ts
-// 两轮讨论：reply 来自 RAG 库（1175 条 20 话题 × 3 派）真实内容，不调 LLM 生成。
+// 两轮讨论：RAG 检索提供依据，聊天模型生成针对当前选择的新回答。
 // 详见 .harness/contracts/discuss.md。
 
 import { NextResponse } from "next/server";
 import { discussRequestSchema } from "@/lib/validators";
-import { embedQuery, retrieveFromTopics } from "@/lib/rag";
 import { loadTopics } from "@/lib/rag/topics";
 import { getDiscussFallback } from "@/lib/fallback";
+import { generateSeatReply, retrieveSessionSources, sourceFields } from "@/lib/session/rag";
 import type { FirstChoice, SecondChoice, SeatId } from "@/lib/types";
 
 // 沿用原 fallback 表的"立意映射"逻辑：firstChoice 决定首轮应被谁回应，secondChoice 决定次轮
@@ -37,19 +37,18 @@ async function buildTopicFallback(
   topicTitle: string,
   seat: SeatId,
 ) {
-  const top = await retrieveFromTopics(null, { topicId: input.topicId, seat }, 3, {
-    firstChoice: input.firstChoice,
-    secondChoice: input.secondChoice ?? undefined,
-    round: input.round,
-  });
+  const top = await retrieveSessionSources(
+    input.topicId,
+    seat,
+    `${topicTitle} ${input.firstChoice} ${input.secondChoice ?? ""} 真实经历`,
+    3,
+  );
   if (top.length === 0) return { ...buildFallback(input), mode: "fallback" as const };
   return {
     selectedSeatId: seat,
     reply: top[0].contentText.slice(0, 280),
     hostComment: `围绕「${topicTitle}」，请 ${top[0].author} 先接话。`,
-    sourceIds: top.map((item) => item.contentId),
-    sourceUrls: top.map((item) => item.url),
-    authors: top.map((item) => item.author),
+    ...sourceFields(top),
     mode: "fallback" as const,
   };
 }
@@ -72,35 +71,28 @@ export async function POST(request: Request) {
     ? FIRST_SEAT[input.firstChoice]
     : SECOND_SEAT[input.secondChoice!];
 
-  // 缺 LLM 配置 → fallback
-  if (!process.env.AI_API_KEY || !process.env.AI_BASE_URL) {
-    return NextResponse.json(await buildTopicFallback(input, currentTopic.title, seat));
-  }
-
-  // 1. embedding（缺 key 时拿不到 vec，retrieveFromTopics 会退化为 keyword + authorityLevel 排序）
   const query = buildQuery(input, currentTopic.title);
-  const queryVec = await embedQuery(query);
-
-  // 2. RAG 检索（限定当前话题 + seat）。queryVec 缺失时仍可走关键词排序。
-  const top = await retrieveFromTopics(
-    queryVec,
-    { topicId: input.topicId, seat },
-    3,
-    { firstChoice: input.firstChoice, secondChoice: input.secondChoice ?? undefined, round: input.round },
-  );
+  const top = await retrieveSessionSources(input.topicId, seat, query, 3);
   if (top.length === 0) {
     return NextResponse.json(await buildTopicFallback(input, currentTopic.title, seat));
   }
 
-  // 3. 拼响应：reply 用 top[0] 的 ContentText 摘录，附原文 url
-  const main = top[0];
+  const fallback = buildFallback(input);
+  const generated = await generateSeatReply({
+    topicTitle: currentTopic.title,
+    seat,
+    question: input.round === 1
+      ? `请针对用户“${input.firstChoice}”的选择，围绕当前话题做一次第一席/第二席发言，提出一个有依据的关键追问。`
+      : `请针对用户在具体情境下选择“${input.secondChoice}”，指出该选择需要面对的一个关键条件或代价。`,
+    sources: top,
+    fallback: fallback.reply,
+  });
+
   return NextResponse.json({
     selectedSeatId: seat,
-    reply: main.contentText.slice(0, 280),
-    hostComment: `「${main.author}」对「${main.title}」的回答`,
-    sourceIds: top.map((t) => t.contentId),
-    sourceUrls: top.map((t) => t.url),
-    authors: top.map((t) => t.author),
-    mode: "ai" as const,
+    reply: generated.reply,
+    hostComment: `围绕「${currentTopic.title}」，${seat === "action" ? "行动派" : seat === "realist" ? "现实派" : "条件派"}回应了你的选择。`,
+    ...sourceFields(top),
+    mode: generated.mode,
   });
 }
