@@ -7,9 +7,19 @@
 ## 核心理念
 
 > **不要裸 commit。** 每条 commit 必须有"为什么"和"结果"，写在 `docs/change-reports/` 的时间戳文件里。
-> 未来的你（或者其他协作者）回头看 git log 时，能直接看到"为什么改、改了什么、效果怎样"。
+> 未来的你（或者其他协作者）回头看 git log 时，能直接看到“为什么改、改了什么、效果怎样”。
 
-## 工作流（5 步）
+## 交付闭环（不可跳步）
+
+每一次提交都按下面的顺序完成，并把证据写回同一个时间戳报告：
+
+```text
+变更原因报告 → 编码 → 本地端到端验证 → 变更原因评论 → commit → push
+```
+
+“变更原因评论”是面向 reviewer 的短摘要，至少回答“为什么现在改、解决了什么、测试证明什么”。有 `gh` 且已登录时，提交后可用 `gh pr comment` 发布；没有 `gh` 时，把评论写在报告的 `## 变更原因评论`，并在 PR 描述或仓内协作记录中引用它。任何模式都不得把 Token、密码或环境变量值写入报告。
+
+## 工作流（闭环）
 
 ### 1. 写变更前预期
 
@@ -21,6 +31,8 @@ TIMESTAMP=$(date +%Y-%m-%d-%H%M)
 SLUG=<本次主题，kebab-case，30 字内>
 FILE="docs/change-reports/${TIMESTAMP}-${SLUG}.md"
 ```
+
+每次 commit 都必须新建一个报告；如果同一分钟已有同主题文件，在 slug 后追加 `-2`、`-3`，不要覆盖已有报告。
 
 报告内容从 [`docs/change-reports/TEMPLATE.md`](../../docs/change-reports/TEMPLATE.md) 复制模板，至少填三段：
 
@@ -79,8 +91,6 @@ FILE="docs/change-reports/${TIMESTAMP}-${SLUG}.md"
 
 ### 2. 编码
 
-### 2. 编码
-
 按 `.harness/INDEX.md` 第 1 节"模块 → owner"确认你的 scope，按对应 `.harness/agents/*.md` / `.harness/rules/*.md` 约束改。
 
 ### 3. 端到端本地测试
@@ -93,7 +103,7 @@ FILE="docs/change-reports/${TIMESTAMP}-${SLUG}.md"
 | `app/api/answer/route.ts` 或 `src/lib/rag/` | `npm run test:rag`（8 RAG 路径） |
 | 都改了 | `npm run test:all` |
 | UI（`src/client/` / `components/`） | 浏览器实测 + 确认 55 class 不变（见 `.harness/rules/ui-invariance.md`） |
-| `src/data/topics.json` | 跑 `npm run rag:build` 后再 `npm run test:core` |
+| `src/data/topics.json` | 按 `add-corpus` skill 校验；增量数据跑 `node scripts/embed-topics.mjs`，覆盖式采集才跑 `npm run rag:build`，然后再跑 `npm run test:core` |
 
 把命令输出贴到报告的"变更后端测效果"。
 
@@ -104,8 +114,10 @@ FILE="docs/change-reports/${TIMESTAMP}-${SLUG}.md"
 ```bash
 git add <files>
 git commit -m "<type>(<scope>): <subject>"
-# body 写"为什么"，引用 change report 路径
+# body 写“为什么”，引用 change report 路径
 ```
+
+提交前确认报告已经包含实际测试结果和 `## 变更原因评论`。不要先 commit 再补报告。
 
 subject ≤ 30 字，type ∈ {feat, fix, refactor, test, docs, chore, style, perf, ci, revert}。
 
@@ -117,6 +129,8 @@ scope 与变更主要目录对应：`harness` / `agents` / `api` / `client` / `c
 git push -u origin <branch>
 # 用 gh CLI 或网页提 PR，按 .github/PULL_REQUEST_TEMPLATE.md 写
 ```
+
+推送前先运行 `git status --short --branch`、`git log -1 --oneline` 和 `git push --dry-run origin HEAD:<branch>`。dry-run 失败时停止，不绕过保护分支、不 force push；权限问题交给仓库 owner 处理。推送成功后把远端分支 URL、commit hash 和报告路径回填到报告。
 
 PR 描述里**必带**：
 
@@ -143,11 +157,16 @@ PR 描述里**必带**：
 - [ ] 时间戳报告已建（`docs/change-reports/${TIMESTAMP}-${slug}.md`）
 - [ ] 报告"变更前预期"段已写
 - [ ] 改动范围内测试已跑（`npm run test:core` / `test:rag` / `test:all`）
+- [ ] 已按 `request-from-teammate` 完成开发前和开发后需求扫描
+- [ ] 有后续协作时已创建 `docs/requests/YYYY-MM-DD-HHMM-<slug>.md`；无后续事项时报告已写 `no follow-up request`
 - [ ] 报告"变更后端测效果"段已贴命令输出
 - [ ] commit subject ≤ 30 字
 - [ ] type ∈ 10 个允许值
 - [ ] scope 与变更主要目录对应
 - [ ] body 引用了 change report 路径
+- [ ] 报告已包含“变更原因评论”，并已准备发布到 PR 或保留为仓内评论证据
+- [ ] `npm run harness:check` 通过
+- [ ] 已完成 dry-run，再执行实际 push
 - [ ] 改了 `.harness/` → 同步 `.harness/INDEX.md`
 - [ ] 改了 UI（`src/client/` / `components/`）→ 读 `.harness/rules/ui-invariance.md`
 - [ ] 改了 API → 确认 `AI_API_KEY` 不出现在客户端代码

@@ -4,8 +4,11 @@
 // 详见 .harness/contracts/discuss.md 和 .harness/contracts/summary.md。
 
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 const base = process.env.BASE_URL || "http://127.0.0.1:3000";
+const topics = JSON.parse(await readFile(new URL("../src/data/topics.json", import.meta.url), "utf8"));
+const expectedTopicCount = Object.keys(topics).length;
 
 async function post(path, body) {
   return fetch(base + path, {
@@ -153,12 +156,15 @@ await check("summary 缺 secondChoice → 400", async () => {
 
 // —— /api/topics ——
 
-// 10. /api/topics 返回 20 话题
-await check("/api/topics → 20 话题", async () => {
+// 10. /api/topics 返回当前 topics.json 的话题数量
+await check("/api/topics → topics.json 话题数量", async () => {
   const r = await fetch(base + "/api/topics");
   assert.equal(r.status, 200);
   const j = await r.json();
-  assert(j.topics && j.topics.length === 20, `expected 20, got ${j.topics?.length}`);
+  assert(
+    j.topics && j.topics.length === expectedTopicCount,
+    `expected ${expectedTopicCount}, got ${j.topics?.length}`,
+  );
   // 每条有 id / title / sourceCount
   for (const t of j.topics) {
     assert(t.id, "topic.id missing");

@@ -2,6 +2,8 @@
 
 > 改 `.harness/` 下任何文件前，先看这里。
 
+机器可读的结构与命令真源是 [`.harness/repo-manifest.json`](./repo-manifest.json)；文档入口见 [`../docs/harness/README.md`](../docs/harness/README.md)。
+
 ## 1. 模块 → owner
 
 | 路径 | 责任 agent | 备注 |
@@ -56,7 +58,9 @@
 - [`skills/commit-with-rationale.md`](./skills/commit-with-rationale.md) — **每次 commit 前**：写时间戳命名的 change report → 编码 → 端测 → commit
 - [`skills/deploy-app.md`](./skills/deploy-app.md) — **部署时**：本地生产 / CI / 云端三种模式 + 健康检查 + 回滚
 - [`skills/request-from-teammate.md`](./skills/request-from-teammate.md) — **跨角色协作**：扫别人需求 + 提需求给对应角色
-- [`skills/add-corpus.md`](./skills/add-corpus.md) — **加新语料**：写 `src/data/topics.json` + 跑 `npm run rag:build`
+- [`skills/add-corpus.md`](./skills/add-corpus.md) — **加新语料**：校验 `src/data/topics.json` + 增量生成 embedding；覆盖式采集才跑 `npm run rag:build`
+
+四个核心 skill 都要求留下共享证据：提交报告写入 `docs/change-reports/`，跨角色需求写入 `docs/requests/`，部署记录写入 `docs/deployment/records/`。这些目录是 `gh` 不可用时的本地协作 fallback。
 
 ### 4b. 4 辅助 skill（领域知识）
 
@@ -73,17 +77,23 @@
 - [`contracts/summary.md`](./contracts/summary.md) — `app/api/summary/route.ts`
 - [`contracts/answer.md`](./contracts/answer.md) — `app/api/answer/route.ts`（RAG 房间问答）
 
-## 6. 钩子 → git 阶段
+## 6. Harness 验证
+
+- `npm run harness:check` — 检查 manifest 中的必需入口、skill 文件、相对链接和 package scripts。
+- `.harness/hooks/pre-commit.mjs` — 在 lint-staged 和测试前执行轻量 harness 检查。
+- 任何治理层入口漂移都应先修 manifest / INDEX，再修改业务文件。
+
+## 7. 钩子 → git 阶段
 
 - `hooks/pre-commit.mjs` — pre-commit 阶段跑 lint-staged + test
 - `hooks/commit-msg.mjs` — commit-msg 阶段跑 commitlint
 
-## 7. 评测 → 路径
+## 8. 评测 → 路径
 
 - `evals/branches.json` — 27 路径期望输出（与 `tests/core-branches.mjs` 对齐）
 - `tests/rooms-rag.mjs` — RAG 路径自动化（与 `contracts/answer.md` 对齐）
 
-## 8. 4 Human 角色（开发职责）
+## 9. 4 Human 角色（开发职责）
 
 > 跟 `.harness/agents/` 的 5 AI 角色是不同层。AI 角色是运行时契约，Human 角色是开发职责。
 
@@ -104,7 +114,7 @@
 
 详见 [`../docs/contributing/team-setup.md`](../docs/contributing/team-setup.md) 完整设置流程。
 
-## 9. 协作治理（.github/）
+## 10. 协作治理（.github/）
 
 | 文件 | 作用 | 责任 |
 |---|---|---|
@@ -124,7 +134,7 @@
 >
 > 数量巧合是 5 / 4 / 4，但意义完全不同。详见 [`../docs/contributing/team-setup.md`](../docs/contributing/team-setup.md) 最后一节。
 
-## 10. 文档（docs/）
+## 11. 文档（docs/）
 
 | 路径 | 作用 |
 |---|---|

@@ -23,12 +23,17 @@
 │   ├── privacy.md             ← AI key 只在服务端
 │   └── commit-policy.md       ← conventional commits
 │
-├── skills/                    ← 3 个技能（按需加载）
-│   ├── write-seat-reply.md    ← 为席位写 reply 时
-│   ├── generate-summary-map.md← 生成 summary 4 象限时
-│   └── author-fallback.md     ← 写兜底内容时
+├── skills/                    ← 8 个技能（4 个核心流程 + 4 个领域辅助）
+│   ├── commit-with-rationale.md  ← 每次 commit 前
+│   ├── deploy-app.md             ← 本地 / 云端部署时
+│   ├── request-from-teammate.md  ← 跨角色协作时
+│   ├── add-corpus.md             ← 加语料时
+│   ├── write-seat-reply.md       ← 为席位写 reply 时
+│   ├── generate-summary-map.md   ← 生成 summary 4 象限时
+│   ├── author-fallback.md        ← 写兜底内容时
+│   └── write-change-report.md    ← 写变更报告时
 │
-├── contracts/                 ← 2 个契约（API 路由）
+├── contracts/                 ← 3 个契约（API 路由）
 │   ├── discuss.md             ← POST /api/discuss
 │   └── summary.md             ← POST /api/summary
 │
