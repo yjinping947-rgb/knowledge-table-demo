@@ -84,12 +84,11 @@ export async function runRag(question: string, k = 4, roomId?: string): Promise<
 
   // 2. Embedding
   const queryVec = await embedQuery(question);
-  if (!queryVec) {
-    return { answer: fallbackAnswer, reasoningContent: "", retrieved: [], mode: "fallback" };
-  }
 
-  // 3. 检索
-  const allRetrieved = await retrieveTopK(queryVec, k * 3); // 多取一些
+  // 3. 检索。没有 embedding 时仍返回语料来源，保证 fallback 也有可解释的上下文。
+  const allRetrieved = queryVec
+    ? await retrieveTopK(queryVec, k * 3)
+    : (await loadCorpus()).map((item) => ({ ...item, score: 0 }));
   // 房间模式：room 自己的语料强制在 top[0]（人设核心），其余按相似度
   let top: Array<RagItem & { score: number }>;
   if (room) {

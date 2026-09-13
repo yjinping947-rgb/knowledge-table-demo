@@ -1,7 +1,16 @@
 // src/client/knowledge-table/constants.ts
 // 三个阶段的选项配置。
 
-import type { FirstChoice, PositionChange, SecondChoice } from "@/lib/types";
+import { seats } from "@/data";
+import type { CollisionPoint, FirstChoice, PositionChange, SecondChoice, TendencyChoice } from "@/lib/types";
+
+export const tendencyOptions: { id: TendencyChoice; label: string; short: string }[] = [
+  { id: "closer_first", label: "我更接近第一席的判断", short: "更接近第一席" },
+  { id: "closer_second", label: "我更接近第二席的判断", short: "更接近第二席" },
+  { id: "both_valid", label: "两边都有道理", short: "两边都有道理" },
+  { id: "undecided", label: "暂时无法判断", short: "暂时无法判断" },
+  { id: "missed_point", label: "两边都没说到重点", short: "没说到重点" },
+];
 
 export const firstOptions: { id: FirstChoice; label: string; short: string }[] = [
   { id: "support_quit", label: "工作已经严重影响身心，就应该裸辞", short: "支持裸辞" },
@@ -20,3 +29,35 @@ export const reflectionOptions: { id: PositionChange; label: string }[] = [
   { id: "slightly_changed", label: "调整了一些条件" },
   { id: "changed", label: "改变了主要立场" },
 ];
+
+const generalFirstOptions: { id: FirstChoice; label: string; short: string }[] = [
+  { id: "support_quit", label: "更倾向于主动行动，先解决眼前的问题", short: "主动行动" },
+  { id: "oppose_quit", label: "更倾向于保持现状，先降低变化风险", short: "降低风险" },
+  { id: "depends", label: "要看具体条件，再决定下一步", short: "看具体条件" },
+];
+
+const generalSecondOptions: { id: SecondChoice; label: string }[] = [
+  { id: "leave_now", label: "现在就行动，优先解决主要矛盾" },
+  { id: "wait_offer", label: "先观察并准备，等更明确信号" },
+  { id: "set_deadline", label: "设置边界和期限，采取折中方案" },
+];
+
+export function firstOptionsForTopic(topicId: string) {
+  return topicId === "T01" ? firstOptions : generalFirstOptions;
+}
+
+export function secondOptionsForTopic(topicId: string) {
+  return topicId === "T01" ? secondOptions : generalSecondOptions;
+}
+
+export function collisionPointsForTopic(): CollisionPoint[] {
+  return seats
+    .filter((seat) => seat.id === "action" || seat.id === "realist")
+    .flatMap((seat) =>
+      seat.arguments.map((text, index) => ({
+        id: `${seat.id}-${index + 1}`,
+        seatId: seat.id,
+        text,
+      })),
+    );
+}

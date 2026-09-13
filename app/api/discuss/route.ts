@@ -21,17 +21,37 @@ const SECOND_SEAT: Record<SecondChoice, SeatId> = {
   set_deadline: "conditional",
 };
 
-const TOPIC_ID = "T01"; // 知识拼桌固定话题"年轻人该不该裸辞"
-
-function buildQuery(input: { firstChoice: FirstChoice; secondChoice?: SecondChoice | null; round: 1 | 2 }): string {
+function buildQuery(input: { firstChoice: FirstChoice; secondChoice?: SecondChoice | null; round: 1 | 2 }, topicTitle: string): string {
   if (input.round === 1) {
-    return `年轻人该不该裸辞 ${input.firstChoice} 实际经验 真实案例`;
+    return `${topicTitle} ${input.firstChoice} 实际经验 真实案例`;
   }
-  return `裸辞 ${input.secondChoice} 的真实经历`;
+  return `${topicTitle} ${input.secondChoice} 的真实经历`;
 }
 
 function buildFallback(input: { firstChoice: FirstChoice; secondChoice?: SecondChoice | null; round: 1 | 2 }) {
   return getDiscussFallback(input.round, input.firstChoice, input.secondChoice ?? null);
+}
+
+async function buildTopicFallback(
+  input: ReturnType<typeof discussRequestSchema.parse>,
+  topicTitle: string,
+  seat: SeatId,
+) {
+  const top = await retrieveFromTopics(null, { topicId: input.topicId, seat }, 3, {
+    firstChoice: input.firstChoice,
+    secondChoice: input.secondChoice ?? undefined,
+    round: input.round,
+  });
+  if (top.length === 0) return { ...buildFallback(input), mode: "fallback" as const };
+  return {
+    selectedSeatId: seat,
+    reply: top[0].contentText.slice(0, 280),
+    hostComment: `围绕「${topicTitle}」，请 ${top[0].author} 先接话。`,
+    sourceIds: top.map((item) => item.contentId),
+    sourceUrls: top.map((item) => item.url),
+    authors: top.map((item) => item.author),
+    mode: "fallback" as const,
+  };
 }
 
 export async function POST(request: Request) {
@@ -42,28 +62,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "请求参数不完整" }, { status: 400 });
   }
 
+  const topics = await loadTopics();
+  const currentTopic = topics[input.topicId];
+  if (!currentTopic) {
+    return NextResponse.json({ error: `话题 ${input.topicId} 不存在` }, { status: 404 });
+  }
+
   const seat = input.round === 1
     ? FIRST_SEAT[input.firstChoice]
     : SECOND_SEAT[input.secondChoice!];
 
   // 缺 LLM 配置 → fallback
   if (!process.env.AI_API_KEY || !process.env.AI_BASE_URL) {
-    return NextResponse.json({ ...buildFallback(input), mode: "fallback" as const });
+    return NextResponse.json(await buildTopicFallback(input, currentTopic.title, seat));
   }
 
   // 1. embedding（缺 key 时拿不到 vec，retrieveFromTopics 会退化为 keyword + authorityLevel 排序）
-  const query = buildQuery(input);
+  const query = buildQuery(input, currentTopic.title);
   const queryVec = await embedQuery(query);
 
-  // 2. RAG 检索（限定 topicId=T01 + seat）。queryVec 缺失时仍可走 fallback 关键词排序。
+  // 2. RAG 检索（限定当前话题 + seat）。queryVec 缺失时仍可走关键词排序。
   const top = await retrieveFromTopics(
     queryVec,
-    { topicId: TOPIC_ID, seat },
+    { topicId: input.topicId, seat },
     3,
     { firstChoice: input.firstChoice, secondChoice: input.secondChoice ?? undefined, round: input.round },
   );
   if (top.length === 0) {
-    return NextResponse.json({ ...buildFallback(input), mode: "fallback" as const });
+    return NextResponse.json(await buildTopicFallback(input, currentTopic.title, seat));
   }
 
   // 3. 拼响应：reply 用 top[0] 的 ContentText 摘录，附原文 url

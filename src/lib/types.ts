@@ -5,6 +5,7 @@ export type SeatId = "action" | "realist" | "conditional";
 export type FirstChoice = "support_quit" | "oppose_quit" | "depends";
 export type SecondChoice = "leave_now" | "wait_offer" | "set_deadline";
 export type PositionChange = "unchanged" | "slightly_changed" | "changed";
+export type TendencyChoice = "closer_first" | "closer_second" | "both_valid" | "undecided" | "missed_point";
 export type Mode = "ai" | "fallback";
 
 export type DiscussResult = {
@@ -18,6 +19,65 @@ export type DiscussResult = {
   mode: Mode;
 };
 
+export type DiscussionTurn = {
+  seatId: SeatId;
+  reply: string;
+  sourceIds: string[];
+  sourceUrls?: string[];
+  authors?: string[];
+};
+
+export type CollisionPoint = {
+  id: string;
+  seatId: SeatId;
+  text: string;
+};
+
+export type CollisionResult = {
+  challenge: DiscussionTurn;
+  response: DiscussionTurn;
+  hostComment: string;
+  mode: Mode;
+};
+
+export type DivergenceCandidate = {
+  id: string;
+  title: string;
+  detail: string;
+};
+
+export type PerspectiveResult = {
+  name: string;
+  basis: string;
+  reframe: string;
+  tool: string;
+  reply: string;
+  sourceIds: string[];
+  sourceUrls?: string[];
+  authors?: string[];
+  mode: Mode;
+};
+
+export type FollowupResult = {
+  seatId: SeatId;
+  reply: string;
+  sourceIds: string[];
+  sourceUrls?: string[];
+  authors?: string[];
+  mode: Mode;
+};
+
+export type ThoughtTrail = {
+  tendency: string;
+  collisionPoint: string;
+  challenge: string;
+  response: string;
+  turningPoint: string;
+  confirmedDivergence: string;
+  perspective: string;
+  departure: string;
+};
+
 export type SummaryResult = {
   consensus: string;
   disagreement: string;
@@ -28,5 +88,7 @@ export type SummaryResult = {
   sourceIds?: string[];
   sourceUrls?: string[];
   authors?: string[];
+  thoughtTrail?: ThoughtTrail;
+  perspective?: PerspectiveResult;
   mode: Mode;
 };
