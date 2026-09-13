@@ -5,28 +5,28 @@ import { useEffect, useState } from "react";
 
 type TopicSummary = { id: string; title: string; sourceCount: number };
 
-export function Sources() {
+export function Sources({ topicId, topicTitle }: { topicId: string; topicTitle: string }) {
   const [topics, setTopics] = useState<TopicSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const total = topics.reduce((s, t) => s + t.sourceCount, 0);
 
   useEffect(() => {
-    fetch("/api/topics")
+    fetch(`/api/topics?id=${encodeURIComponent(topicId)}`)
       .then((r) => r.json())
       .then((j) => {
         setTopics(j.topics ?? []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [topicId]);
 
   return (
     <section className="sources">
       <div className="section-title">
         <p className="eyebrow">本桌观点来源</p>
-        <h2>基于 20 话题 × 3 派 真实知乎知识库</h2>
+        <h2>「{topicTitle}」的真实知乎知识库</h2>
         <span>
-          从知乎开放平台检索得到 {total} 条真实回答，按 cosine 相似度匹配最相关的 3 条展示。原文链接可点击跳转。
+          当前话题共 {total} 条回答，按 cosine 相似度匹配最相关的 3 条展示。原文链接可点击跳转。
         </span>
       </div>
       {loading ? (

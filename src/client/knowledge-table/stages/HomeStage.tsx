@@ -3,9 +3,10 @@
 "use client";
 
 import Image from "next/image";
-import { topic } from "@/data";
+import Link from "next/link";
+import type { Topic } from "@/data";
 
-export function HomeStage({ onJoin }: { onJoin: () => void }) {
+export function HomeStage({ topic, onJoin }: { topic: Topic; onJoin: () => void }) {
   return (
     <main className="hero">
       <Image
@@ -16,9 +17,9 @@ export function HomeStage({ onJoin }: { onJoin: () => void }) {
         priority
         sizes="100vw"
       />
-      <div className="brand">
-        知识拼桌 <span>· DEMO</span>
-      </div>
+      <Link className="brand" href="/" style={{ color: "inherit", textDecoration: "none" }}>
+        知识拼桌 <span>· 返回大厅</span>
+      </Link>
       <section className="hero-copy">
         <p className="eyebrow">今天这一桌聊</p>
         <h1>{topic.question}</h1>

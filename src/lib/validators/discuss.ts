@@ -5,6 +5,7 @@ import { z } from "zod";
 
 export const discussRequestSchema = z
   .object({
+    topicId: z.string().regex(/^T\d{2}$/).default("T01"),
     round: z.union([z.literal(1), z.literal(2)]),
     firstChoice: z.enum(["support_quit", "oppose_quit", "depends"]),
     secondChoice: z.enum(["leave_now", "wait_offer", "set_deadline"]).nullable().optional(),

@@ -1,20 +1,26 @@
 // app/page.tsx
-// 主页：?season=S01 渲染 2 轮 demo（KnowledgeTable）；否则渲染赛季列表。
+// 主页：默认显示话题大厅；?topic=T01 进入对应话题的讨论桌。
 // 详见 docs/contributing/team-setup.md 与 .harness/INDEX.md 第 7 节。
 
 import KnowledgeTable from "@/components/KnowledgeTable";
+import { listSeasons } from "@/data";
+import { listTopics } from "@/lib/rag";
 import { SeasonsShell } from "../src/client/seasons/SeasonsShell";
 
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ season?: string }>;
+  searchParams: Promise<{ topic?: string }>;
 }) {
-  const { season } = await searchParams;
-  if (season) {
-    // 指定赛季 → 渲染 2 轮 demo（当前实现暂未按 season 切分，沿用 T01）
-    return <KnowledgeTable />;
+  const { topic: topicId } = await searchParams;
+  const [seasons, topics] = await Promise.all([listSeasons(), listTopics()]);
+
+  if (topicId) {
+    const selectedTopic = topics.find((item) => item.id === topicId);
+    if (selectedTopic) {
+      return <KnowledgeTable topicId={selectedTopic.id} topicTitle={selectedTopic.title} />;
+    }
   }
-  // 默认 → 渲染赛季列表
-  return <SeasonsShell />;
+
+  return <SeasonsShell seasons={seasons} topics={topics} />;
 }

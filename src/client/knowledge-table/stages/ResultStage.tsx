@@ -6,7 +6,17 @@ import { MapCard } from "../components/MapCard";
 import { Sources } from "../components/Sources";
 import type { SummaryResult } from "@/lib/types";
 
-export function ResultStage({ summary, onReset }: { summary: SummaryResult; onReset: () => void }) {
+export function ResultStage({
+  summary,
+  onReset,
+  topicId,
+  topicTitle,
+}: {
+  summary: SummaryResult;
+  onReset: () => void;
+  topicId: string;
+  topicTitle: string;
+}) {
   return (
     <main className="result-page">
       <header className="result-hero">
@@ -17,7 +27,7 @@ export function ResultStage({ summary, onReset }: { summary: SummaryResult; onRe
           sizes="100vw"
         />
         <div className="result-title">
-          <p className="eyebrow">两轮之后 · 本桌讨论地图</p>
+          <p className="eyebrow">一桌之后 · 本桌思考轨迹</p>
           <h1>
             你把问题
             <br />
@@ -65,7 +75,42 @@ export function ResultStage({ summary, onReset }: { summary: SummaryResult; onRe
             </div>
           </div>
         </section>
-        <Sources />
+        {summary.thoughtTrail && (
+          <section className="thought-trail">
+            <div className="section-title">
+              <p className="eyebrow">本桌思考轨迹</p>
+              <h2>你不是得到了一个答案，而是多了几条判断线</h2>
+            </div>
+            <div className="thought-trail-list">
+              <article>
+                <b>01 / 初始倾向</b>
+                <p>{summary.thoughtTrail.tendency}</p>
+              </article>
+              <article>
+                <b>02 / 选择的碰撞点</b>
+                <p>{summary.thoughtTrail.collisionPoint}</p>
+              </article>
+              <article>
+                <b>03 / 带来动摇的质疑</b>
+                <p>{summary.thoughtTrail.challenge}</p>
+                <p>{summary.thoughtTrail.response}</p>
+              </article>
+              <article>
+                <b>04 / 确认的隐藏分歧</b>
+                <p>{summary.thoughtTrail.confirmedDivergence}</p>
+              </article>
+              <article>
+                <b>05 / 第三席带来的新理解</b>
+                <p>{summary.thoughtTrail.perspective}</p>
+              </article>
+              <article>
+                <b>06 / 离桌时</b>
+                <p>{summary.thoughtTrail.departure}</p>
+              </article>
+            </div>
+          </section>
+        )}
+        <Sources topicId={topicId} topicTitle={topicTitle} />
         <div className="result-actions">
           <button className="primary dark" onClick={onReset}>
             再坐一桌 <span>↻</span>

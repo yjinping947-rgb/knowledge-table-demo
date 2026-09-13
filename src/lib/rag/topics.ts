@@ -54,7 +54,6 @@ const SECOND_KEYWORDS: Record<string, string[]> = {
 
 let cachedTopics: Record<string, Topic> | null = null;
 let cachedEmbeddings: TopicEmbedding[] | null = null;
-const cachedTopicsList: Array<{ id: string; title: string; sourceCount: number }> | null = null;
 
 export async function loadTopics(): Promise<Record<string, Topic>> {
   if (cachedTopics !== null) return cachedTopics;

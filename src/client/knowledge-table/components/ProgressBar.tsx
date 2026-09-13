@@ -1,37 +1,25 @@
 // src/client/knowledge-table/components/ProgressBar.tsx
 
+import { Fragment } from "react";
 import type { Stage } from "../state";
 
 export function ProgressBar({ stage }: { stage: Stage }) {
+  const firstGroup: Stage[] = ["intro"];
+  const secondGroup: Stage[] = ["tendency"];
+  const thirdGroup: Stage[] = ["collision-point", "collision-response"];
+  const fourthGroup: Stage[] = ["divergence", "perspective-preview"];
+  const fifthGroup: Stage[] = ["third-seat", "result"];
+  const groups = [firstGroup, secondGroup, thirdGroup, fourthGroup, fifthGroup];
+  const activeIndex = groups.findIndex((group) => group.includes(stage));
+
   return (
     <div className="progress" aria-label="讨论进度">
-      <span className={stage === "intro" ? "on" : "done"}>入桌</span>
-      <i />
-      <span
-        className={
-          ["round1-choice", "round1-response"].includes(stage)
-            ? "on"
-            : ["round2-choice", "round2-response", "reflection"].includes(stage)
-              ? "done"
-              : ""
-        }
-      >
-        第一轮
-      </span>
-      <i />
-      <span
-        className={
-          ["round2-choice", "round2-response"].includes(stage)
-            ? "on"
-            : ["reflection"].includes(stage)
-              ? "done"
-              : ""
-        }
-      >
-        第二轮
-      </span>
-      <i />
-      <span className={stage === "reflection" ? "on" : ""}>整理</span>
+      {["入桌", "两席", "碰撞", "校准", "第三席"].map((label, index) => (
+        <Fragment key={label}>
+          <span className={index === activeIndex ? "on" : index < activeIndex ? "done" : ""}>{label}</span>
+          {index < groups.length - 1 && <i />}
+        </Fragment>
+      ))}
     </div>
   );
 }

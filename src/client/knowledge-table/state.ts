@@ -1,17 +1,31 @@
 // src/client/knowledge-table/state.ts
 // KnowledgeTable 的状态机。详见 .harness/AGENTS.md 与 .harness/rules/ui-invariance.md。
 
-import type { DiscussResult, FirstChoice, PositionChange, SecondChoice, SummaryResult } from "@/lib/types";
+import type {
+  CollisionPoint,
+  CollisionResult,
+  DiscussResult,
+  DivergenceCandidate,
+  FirstChoice,
+  FollowupResult,
+  PerspectiveResult,
+  PositionChange,
+  SecondChoice,
+  SummaryResult,
+  TendencyChoice,
+  SeatId,
+} from "@/lib/types";
 import type { UserSession } from "../../user";
 
 export type Stage =
   | "home"
   | "intro"
-  | "round1-choice"
-  | "round1-response"
-  | "round2-choice"
-  | "round2-response"
-  | "reflection"
+  | "tendency"
+  | "collision-point"
+  | "collision-response"
+  | "divergence"
+  | "perspective-preview"
+  | "third-seat"
   | "result";
 
 export type ResponseWithRound = DiscussResult & { round: number };
@@ -21,6 +35,15 @@ export type KnowledgeTableState = {
   firstChoice: FirstChoice | null;
   secondChoice: SecondChoice | null;
   positionChange: PositionChange | null;
+  tendency: TendencyChoice | null;
+  collisionPoint: CollisionPoint | null;
+  collision: CollisionResult | null;
+  divergences: DivergenceCandidate[];
+  confirmedDivergence: string | null;
+  perspective: PerspectiveResult | null;
+  thirdSeatInvited: boolean;
+  followupSeatId: SeatId | null;
+  followup: FollowupResult | null;
   responses: ResponseWithRound[];
   summary: SummaryResult | null;
   loading: boolean;
@@ -31,6 +54,15 @@ export const initialState: KnowledgeTableState = {
   firstChoice: null,
   secondChoice: null,
   positionChange: null,
+  tendency: null,
+  collisionPoint: null,
+  collision: null,
+  divergences: [],
+  confirmedDivergence: null,
+  perspective: null,
+  thirdSeatInvited: false,
+  followupSeatId: null,
+  followup: null,
   responses: [],
   summary: null,
   loading: false,
@@ -41,6 +73,14 @@ export type KnowledgeTableAction =
   | { type: "SET_FIRST_CHOICE"; choice: FirstChoice | null }
   | { type: "SET_SECOND_CHOICE"; choice: SecondChoice | null }
   | { type: "SET_POSITION_CHANGE"; choice: PositionChange | null }
+  | { type: "SET_TENDENCY"; choice: TendencyChoice | null }
+  | { type: "SET_COLLISION_POINT"; point: CollisionPoint | null }
+  | { type: "SET_COLLISION"; collision: CollisionResult | null }
+  | { type: "SET_DIVERGENCES"; divergences: DivergenceCandidate[] }
+  | { type: "SET_CONFIRMED_DIVERGENCE"; value: string | null }
+  | { type: "SET_PERSPECTIVE"; perspective: PerspectiveResult | null }
+  | { type: "SET_THIRD_SEAT"; invited: boolean }
+  | { type: "SET_FOLLOWUP"; seatId: SeatId | null; result?: FollowupResult | null }
   | { type: "ADD_RESPONSE"; response: ResponseWithRound }
   | { type: "SET_SUMMARY"; summary: SummaryResult | null }
   | { type: "SET_LOADING"; loading: boolean }
@@ -56,6 +96,22 @@ export function reducer(state: KnowledgeTableState, action: KnowledgeTableAction
       return { ...state, secondChoice: action.choice };
     case "SET_POSITION_CHANGE":
       return { ...state, positionChange: action.choice };
+    case "SET_TENDENCY":
+      return { ...state, tendency: action.choice };
+    case "SET_COLLISION_POINT":
+      return { ...state, collisionPoint: action.point };
+    case "SET_COLLISION":
+      return { ...state, collision: action.collision };
+    case "SET_DIVERGENCES":
+      return { ...state, divergences: action.divergences };
+    case "SET_CONFIRMED_DIVERGENCE":
+      return { ...state, confirmedDivergence: action.value };
+    case "SET_PERSPECTIVE":
+      return { ...state, perspective: action.perspective };
+    case "SET_THIRD_SEAT":
+      return { ...state, thirdSeatInvited: action.invited };
+    case "SET_FOLLOWUP":
+      return { ...state, followupSeatId: action.seatId, followup: action.result ?? null };
     case "ADD_RESPONSE":
       return { ...state, responses: [...state.responses, action.response] };
     case "SET_SUMMARY":
@@ -72,9 +128,13 @@ export function reducer(state: KnowledgeTableState, action: KnowledgeTableAction
 // 选择器
 export const selectLatestResponse = (s: KnowledgeTableState): ResponseWithRound | undefined => s.responses.at(-1);
 export const selectActiveSeat = (s: KnowledgeTableState) =>
-  s.stage.includes("response") ? selectLatestResponse(s)?.selectedSeatId : undefined;
+  s.stage === "collision-response" ? s.collision?.response.seatId : undefined;
 export const selectDemoMode = (s: KnowledgeTableState) =>
-  s.responses.some((r) => r.mode === "fallback") || s.summary?.mode === "fallback";
+  s.responses.some((r) => r.mode === "fallback") ||
+  s.collision?.mode === "fallback" ||
+  s.followup?.mode === "fallback" ||
+  s.perspective?.mode === "fallback" ||
+  s.summary?.mode === "fallback";
 
 /**
  * 把 KnowledgeTableState 投影到 user 域的 UserSession。
