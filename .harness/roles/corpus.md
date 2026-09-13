@@ -9,7 +9,7 @@ team_members: []
 
 ## 职责
 
-负责知乎问答语料的采集、清洗、分类、embedding 生成。20 话题 × 3 派 = 1175 条真实回答（unique contentId 743 个）。
+负责知乎问答语料的采集、清洗、分类、embedding 生成。当前基线以 `src/data/topics.json` 实际统计为准；2026-09-13 快照为 21 个话题、1184 条记录、752 个不同 `contentId`，历史跨席位重复需保留并显式记录。
 
 ## owner 目录
 
@@ -20,7 +20,7 @@ scripts/                 # 采集 / embedding 脚本
 
 ## owner 文件
 
-- `src/data/topics.json` — 1175 条 20 话题 × 3 派结构化语料
+- `src/data/topics.json` — 结构化语料（当前快照 21 话题、1184 条记录）
 - `src/data/topic.json` — 1 个总话题
 - `src/data/seats.json` — 3 个席位定义
 - `src/data/sources.json` — 9 条原始来源（S01-S09）
@@ -28,14 +28,14 @@ scripts/                 # 采集 / embedding 脚本
 - `src/data/rag-corpus.json` — 28 条 RAG 旧语料
 - `src/data/rag-embeddings.json` — 旧 embeddings（gitignore）
 - `src/data/topic-embeddings.json` — 新 embeddings（gitignore）
-- `scripts/collect-corpus-batch.mjs` — 采集 + 校验
+- `scripts/collect-corpus-batch.mjs` — Windows ZhihuCLI 覆盖式采集
 - `scripts/embed-topics.mjs` — 生成 embedding
 - `scripts/build-rooms.mjs` — 从 corpus 生成 rooms.json
 
 ## 协作场景
 
-- **加新话题**：写进 `topics.json`，跑 `npm run rag:build`
-- **现有话题补数据**：同样写进 `topics.json`，跑 `npm run rag:build`
+- **加新话题**：写进 `topics.json`，校验后运行 `node scripts/embed-topics.mjs`；明确全量重采集时才跑 `npm run rag:build`
+- **现有话题补数据**：同样写进 `topics.json`，校验后运行 `node scripts/embed-topics.mjs`
 - **改 embedding 模型**：改 `embed-topics.mjs` 的 `model` 常量 + `embedQuery` 调用
 
 ## 需要 review 的别人改动
@@ -66,7 +66,7 @@ scripts/                 # 采集 / embedding 脚本
 }
 ```
 
-- `contentId` 全局唯一（用知乎 API 的 `id` 字段）
+- 新增 `contentId` 不得与已有来源意外冲突；历史跨席位重复不要静默重写
 - `url` 必带 `utm=openai_platform`（防爬虫）
 - `contentText` 完整原文（用于 LLM 参考来源）
 

@@ -17,6 +17,13 @@
 
 > 注：这 4 个是**人类协作角色**（team roles），跟 `.harness/agents/` 下的 5 个 **AI 角色**（director / action / realist / conditional / user）是不同层。AI 角色是运行时契约，人角色是开发职责。
 
+## 共享记录和命名
+
+- 可执行的跨角色需求必须写到 `docs/requests/YYYY-MM-DD-HHMM-<slug>.md`。
+- 新建记录时复制 [`docs/requests/TEMPLATE.md`](../../docs/requests/TEMPLATE.md)，不要只在聊天里口头转述。
+- 本地 Markdown 是没有 `gh` 时的共享真源；有 `gh` 时，GitHub Issue / PR 只是同步面，Issue URL 回填到本地记录。
+- 需求记录、扫描记录和评论都不得写入 Token、密码、Cookie、API key 或完整环境变量值。
+
 ## 工作流
 
 ### Step 1: 确认你的角色
@@ -49,6 +56,16 @@ gh pr list --label "needs-<your-role>-review" --state open
 列出我需要响应的事项（按优先级）。
 ```
 
+没有 `gh` 或 GitHub 网络不可用时，按同样的顺序扫描仓内共享记录：
+
+```bash
+find docs/requests -maxdepth 1 -type f -name '*.md' ! -name 'README.md' ! -name 'TEMPLATE.md' -print | sort
+find docs/change-reports -maxdepth 1 -type f -name '*.md' ! -name 'TEMPLATE.md' -print | sort
+rg -n "状态|owner|needs-|待处理|阻塞" docs/requests docs/change-reports --glob '!README.md' --glob '!TEMPLATE.md'
+```
+
+先看 `open` / `in-progress`，再按优先级和更新时间排序。GitHub Issue、PR 和仓内 Markdown 是同一需求的不同同步面，不能因为 `gh` 不可用而跳过开发前扫描。
+
 ### Step 3: 评估每个事项
 
 | 事项类型 | 你该做什么 |
@@ -62,15 +79,18 @@ gh pr list --label "needs-<your-role>-review" --state open
 
 当你需要别人配合时：
 
-1. **打开 `.github/ISSUE_TEMPLATE/{bug,feature}.md`**，按模板写
-2. **指定 owner**：在 issue 描述里 @ 对方 + 加对应 label（如 `needs-ui-design`）
-3. **背景 + 验收**：写清楚"为什么"和"完成标准"
-4. **链接 change report**（如果是从某次变更衍生的需求）：
+1. **先创建仓内记录**：按 `YYYY-MM-DD-HHMM-<slug>.md` 命名，并从 [`docs/requests/TEMPLATE.md`](../../docs/requests/TEMPLATE.md) 复制。
+2. **打开 `.github/ISSUE_TEMPLATE/{bug,feature}.md`**，按模板准备同步内容。
+3. **指定 owner**：在记录和 issue 描述里写明对应角色；GitHub 可用时 @ 对方并加对应 label（如 `needs-ui-design`）。
+4. **背景 + 验收**：写清楚"为什么"和"完成标准"。
+5. **链接 change report**（如果是从某次变更衍生的需求）：
 
 ```markdown
 ## 关联
 Refs docs/change-reports/2026-09-12-1430-fix-router-fallback.md
 ```
+
+6. **自审后再同步**：确认这确实需要 owner 配合，再用 `gh issue create` 或 PR 评论同步；没有 `gh` 时保留本地记录即可。
 
 ### Step 4.5: 选 workflow 模式
 
@@ -85,10 +105,20 @@ Refs docs/change-reports/2026-09-12-1430-fix-router-fallback.md
 > 实战经验：3 派 × 3 条 = 9 条样本的小改动，**Single-PR 够用**。30+ 条 / 跨 3 角色 / 加新组件 → Multi-PR。
 > 关键判断：你的改动**能不能一个人一次 commit 搞定**。能 → Single-PR；不能 → Multi-PR + issue 跟踪。
 
-### Step 5: 跟踪
+### Step 5: 开发完成后的再次扫描
+
+完成本次代码后，必须再运行一次 Step 2 的需求扫描，确认本次改动是否产生新的协作事项：
+
+1. 重新扫描最近的 `docs/change-reports/`、`docs/requests/`，并在有 `gh` 时检查相关 Issue / PR。
+2. 如果发现 UI、API、测试、语料或治理层的后续工作，按 Step 4 创建新的时间戳需求记录，并在记录中关联本次 change report。
+3. 如果没有后续需求，在本次 change report 增加 `## 需求协作扫描`，至少写明扫描时间、角色、扫描范围和 `no follow-up request`。
+4. 不要因为“没有后续需求”而创建空的 issue 或占位请求文件。
+
+### Step 6: 跟踪
 
 - **你提的需求**：用 `gh issue list --author=@me --state open` 看进度
 - **别人给你的需求**：用 `gh issue list --assignee=@me --state open` 看
+- 没有 `gh` 时：按 `docs/requests/README.md` 扫描 `open` / `in-progress` 记录，并更新 `最后更新`。
 - **每周扫一次**（可在 cron / habit 里固化）
 
 ## 需求路由表
@@ -113,6 +143,7 @@ Refs docs/change-reports/2026-09-12-1430-fix-router-fallback.md
 - [ ] 验收标准明确吗？（什么算完成）
 - [ ] 关联的 change report 链上了吗？
 - [ ] 提给了正确的角色？（不是全员泛指）
+- [ ] 已按 `docs/requests/YYYY-MM-DD-HHMM-<slug>.md` 创建记录，并引用了模板
 
 ### 提需求后
 
@@ -120,6 +151,12 @@ Refs docs/change-reports/2026-09-12-1430-fix-router-fallback.md
 - [ ] 写在了正确的 repo / 用了正确的 issue 模板
 - [ ] 自己先 review 了一轮（避免"其实我自己能修"的低级需求）
 - [ ] 通知了相关人（如果跨多角色）
+
+### 开发后扫描
+
+- [ ] 已重新扫描 `docs/requests/`、`docs/change-reports/` 和可用的 GitHub Issue / PR
+- [ ] 有后续协作时，已创建新的时间戳需求记录
+- [ ] 无后续协作时，change report 已明确记录 `no follow-up request`
 
 ## 完整工作流（从开发到发布）
 
@@ -129,11 +166,13 @@ Refs docs/change-reports/2026-09-12-1430-fix-router-fallback.md
 3. 自己的开发工作
 4. 改完跑测试（commit-with-rationale skill）
 5. 写 change report
-6. commit + push + PR
-7. PR 描述里@ 相关角色
-8. 监控 review 反馈
-9. 合并后扫一下"有没有衍生需求要提给别人"
-10. 提需求（用本 skill）
+6. 再扫一次需求和变更记录
+7. 如果有后续事项，按时间戳创建 `docs/requests/*.md`
+8. commit + push + PR
+9. PR 描述里 @ 相关角色
+10. 监控 review 反馈
+11. 合并后扫一下"有没有衍生需求要提给别人"
+12. 提需求（用本 skill）
 ```
 
 ## 跟其他 skill / rule 的关系

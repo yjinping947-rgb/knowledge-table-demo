@@ -5,12 +5,14 @@
 - 给项目加新的知乎问答语料
 - 给现有话题加新观点（action / realist / conditional 各补几条）
 - 改完语料后重新生成 embedding
+- 评估是否要把当前 `zhihu-cli` 采集替换或扩展为 API / 搜索适配器
 
-## 现状（2026-09-12）
+## 现状（2026-09-13）
 
-- **20 个话题**（T01-T20），每个话题下 3 个席位（action/realist/conditional）
-- **每席约 20 条**回答，总计 **1175 条**（unique contentId 743 个）
-- **embedding 文件**：`src/data/topic-embeddings.json`（gitignore，1175 × 1536 维，约 12MB）
+- 当前 `src/data/topics.json` 有 **21 个话题**（T01-T21），总计 **1184 条席位记录**。
+- 当前数据统计为 **752 个不同 contentId**；历史语料存在同一来源被多个席位引用的情况，不要为了清零重复而静默重写既有数据。
+- **embedding 文件**：`src/data/topic-embeddings.json`（gitignore，按当前 source 数量生成，1536 维）。
+- 以上数量是当前文件快照，不是永久常量；每次改语料都以校验命令的实际输出为准。
 
 ## 工作流
 
@@ -18,7 +20,7 @@
 
 确定要加什么：
 
-- **新话题**：想加 T21 吗？叫什么？3 个席位各找 20 条知乎回答
+- **新话题**：想加新的 `Txx` 吗？叫什么？3 个席位各找多少条知乎回答
 - **现有话题补数据**：T01 的 action 席缺几条？补 5 条 action + 3 条 realist + 2 条 conditional
 - **新观点类型**：现在的 schema 只有 action/realist/conditional，加新类型要同步改 `.harness/agents/` 和路由
 
@@ -34,7 +36,7 @@
     "seats": {
       "action": [
         {
-          "contentId": "-8709312983258158741",  // 唯一 ID，从知乎 API 拿
+          "contentId": "-8709312983258158741",  // 来源系统的稳定 ID
           "title": "...",
           "author": "知乎答主名",
           "contentText": "完整回答（建议 200-2000 字）",
@@ -53,11 +55,11 @@
 
 **关键约束**：
 
-- `contentId` 必须唯一（整个 topics.json 不能重复）。从知乎 API 的 `id` 字段取
+- `contentId` 从来源系统的稳定 ID 取。新增记录不能与已有来源意外冲突；历史数据中的跨席位重复要记录但不静默重写
 - `contentText` 必须是完整原文，不要截断（用于给 LLM 看的"参考来源"）
 - `url` 必须带 `utm=openai_platform` 标识（防爬虫）
-- `voteUpCount` / `commentCount` / `authorityLevel` 来自 API
-- 新加的话题 `id` 必须唯一（不能跟现有 T01-T20 重复）
+- `voteUpCount` / `commentCount` / `authorityLevel` 来自当前 provider 的明确字段映射
+- 新加的话题 `id` 必须唯一（不能跟现有话题重复）
 
 ### Step 2.5: 选样本数量
 
@@ -76,24 +78,29 @@
 | 9 条 | ~3 min | < $0.01 |
 | 30 条 | ~6 min | < $0.01 |
 | 60 条 | ~9 min | < $0.01 |
-| 1175 条（满载 20 话题）| ~2.5 min（已有 embedding 缓存）| < $0.02 |
+| 当前全量（以校验命令为准）| 取决于 provider / API 速度 | 按实际 token 用量 |
 
 > 实战经验：3 派 × 3 条 = 9 条样本够 demo 跑通，**不要追求一次到位**。先 9 条验证 pipeline，再慢慢加。
 
-### Step 3: 跑 `npm run rag:build` 生成 embedding
+### Step 3: 生成 embedding
 
 ```bash
+# 增量修改已有 topics.json 时，默认只重建 embedding：
+node scripts/embed-topics.mjs
+
+# 只有明确要重新采集并覆盖 topics.json 时才运行：
 npm run rag:build
 # 等价于：
-#   node scripts/collect-corpus-batch.mjs  (校验数据完整性)
-#   node scripts/embed-topics.mjs          (调 embedding API 生成 1175+ 条向量)
+#   node scripts/collect-corpus-batch.mjs  (覆盖式 ZhihuCLI 采集)
+#   node scripts/embed-topics.mjs          (调 embedding API 生成向量)
 ```
 
 **前提**：
 
 - `.env.local` 配了 `AI_API_KEY` 和 `AI_BASE_URL`
 - embedding 模型默认 `text-embedding-3-small`（1536 维）
-- 1175 条大约 5 分钟，看 embedding provider 速度
+- 运行 `npm run rag:build` 前必须确认覆盖 `src/data/topics.json` 是有意行为，并先保存现有数据。
+- `scripts/collect-corpus-batch.mjs` 当前把 `zhihu-cli.exe` 写成 Windows 绝对路径；在 macOS / Linux 上不能直接完成采集阶段。
 
 **输出**：`src/data/topic-embeddings.json`（自动 gitignore）
 
@@ -124,21 +131,44 @@ npm run test:rag
 
 ## 批量采集
 
-如果要从知乎 API 拉新语料，用 `scripts/collect-corpus-batch.mjs`：
+如果要用当前 ZhihuCLI 批量拉新语料，用 `scripts/collect-corpus-batch.mjs`：
 
 ```bash
-# 1. 配 access token（如果用了官方 API）
+# 1. 确认 Windows ZhihuCLI 与运行权限可用
 # 2. 跑采集脚本
 node scripts/collect-corpus-batch.mjs
 
-# 3. 脚本输出 src/data/topics.json（已有内容会被覆盖！）
-# 4. 如果只想加新话题不覆盖，先备份
+# 3. 当前脚本输出 src/data/topics.json（已有内容会被覆盖！）
+# 4. 如果只想加新话题不覆盖，先备份并手动 merge
 cp src/data/topics.json src/data/topics.json.bak
 node scripts/collect-corpus-batch.mjs
 # 手动 merge
 ```
 
-> ⚠️ `collect-corpus-batch.mjs` 默认会**覆盖** `topics.json`。如果想增量加，先备份再 merge。
+> ⚠️ `collect-corpus-batch.mjs` 默认会**覆盖** `topics.json`，且当前脚本依赖 Windows 下的 ZhihuCLI。不要把一次失败采集产生的空结果或半成品覆盖到 canonical source。
+
+## 未来 API / 搜索采集边界
+
+如果后续接入官方 API、站内搜索 API 或其他合规搜索方式，先新增采集 adapter，不要把 provider 响应直接散落到业务代码。推荐保持下面的边界：
+
+```text
+provider search(query, count)
+  → normalize(raw item)
+  → classify(topic, seat)
+  → merge / validate current topics.json schema
+```
+
+adapter 的规范化结果至少要能映射到现有字段：`contentId`、`title`、`author`、`contentText`、`url`、`voteUpCount`、`commentCount`、`authorityLevel`。provider 名称、查询词、分页、抓取时间和失败原因放采集日志或 change report，不擅自改变运行时 source schema。
+
+接入新 provider 前必须先确认：
+
+- 认证变量、权限范围、速率限制、分页、重试和超时；
+- 正文是否完整、是否允许保存、来源 URL 是否可追溯；
+- provider 失败时是否保留旧 `topics.json`，不能用空结果覆盖已有数据；
+- 如何继续保留当前 ZhihuCLI 的兼容回退；
+- 如何通过同一套 `contentId`、URL、字段完整性和 RAG 回归检查。
+
+在这些约束落地前，继续使用当前 ZhihuCLI 流程；不要把未来 API 写成已经存在的能力。任何 token、Cookie、请求头或 API key 都只能来自运行时环境，不进入数据、日志或文档。
 
 ## 性能 / 成本预估
 
@@ -148,7 +178,7 @@ node scripts/collect-corpus-batch.mjs
 | 60 条（1 话题） | ~90s | ~45K | $0.0009 |
 | 1200 条（重建） | ~30 min | ~900K | $0.018 |
 
-20 话题 × 3 派 × 20 = 1200 条总容量。当前 1175 条。
+容量和成本以 `src/data/topics.json` 的实际条数、embedding provider 的 token 统计和报告记录为准。
 
 ## 常见问题
 
@@ -161,8 +191,8 @@ node -e "const t=require('./src/data/topics.json'); console.log(Object.keys(t).l
 # 2. 检查每个 topic 的 seats 都有
 node -e "const t=require('./src/data/topics.json'); for(const k of Object.keys(t)) { const s=t[k].seats; console.log(k, s.action.length, s.realist.length, s.conditional.length) }"
 
-# 3. 检查 contentId 不重复
-node -e "const t=require('./src/data/topics.json'); const ids=new Set(); const dupes=[]; for(const k of Object.keys(t)) for(const seat of ['action','realist','conditional']) for(const src of t[k].seats[seat]) { if(ids.has(src.contentId)) dupes.push(src.contentId); ids.add(src.contentId); } console.log('total:', ids.size, 'dupes:', dupes.length)"
+# 3. 检查 contentId 重复，并区分历史重复与本次新增冲突
+node -e "const t=require('./src/data/topics.json'); const ids=new Map(); let total=0; let dupes=0; for(const k of Object.keys(t)) for(const seat of ['action','realist','conditional']) for(const src of t[k].seats[seat]) { total++; if(ids.has(src.contentId)) dupes++; ids.set(src.contentId, k+'/'+seat); } console.log('records:', total, 'unique:', ids.size, 'duplicate placements:', dupes)"
 ```
 
 ### Q: embedding 跑一半挂了
@@ -189,13 +219,14 @@ node -e "const t=require('./src/data/topics.json'); const ids=new Set(); const d
 ## 自检清单
 
 - [ ] `src/data/topics.json` 格式合法（每个 topic 有 id/title/seats，seats 有 3 派）
-- [ ] `contentId` 全局唯一
+- [ ] 新增 `contentId` 未与已有来源意外冲突；历史重复已记录但未静默改写
 - [ ] `url` 都带 `utm=openai_platform`
 - [ ] `contentText` 是完整原文
-- [ ] 跑 `npm run rag:build` 成功
+- [ ] 增量数据默认跑 `node scripts/embed-topics.mjs`；覆盖式采集才跑 `npm run rag:build`
 - [ ] 27 路径 + 8 RAG 路径全绿
 - [ ] 浏览器实测能看到新语料
 - [ ] Change report 引用了 build 输出（batches/tokens/时间）
+- [ ] 开发前和开发后都扫过 `docs/requests/`；无后续需求时记录 `no follow-up request`
 
 ## 跟其他 skill / rule 的关系
 

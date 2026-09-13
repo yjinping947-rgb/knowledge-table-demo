@@ -20,7 +20,7 @@
         ↓                     ↓                        ↓
    add-corpus  →   commit-with-rationale   ←   deploy-app
         ↓                     ↓
-   1175 语料              change report
+   topics.json 语料       change report
                               ↓
                           deploy-app
 ```

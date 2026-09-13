@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "repo": {
+    "name": "knowledge-table-demo",
+    "role": "application-with-harness-control-plane",
+    "primaryHumanEntry": "README.md",
+    "primaryAgentEntry": ".harness/AGENTS.md"
+  },
+  "truthLayers": [
+    "current-user-instruction",
+    ".harness/repo-manifest.json",
+    ".harness/AGENTS.md",
+    ".harness/skills/",
+    "docs/"
+  ],
+  "agentEntrypoints": {
+    "root": ".harness/AGENTS.md",
+    "index": ".harness/INDEX.md",
+    "manifest": ".harness/repo-manifest.json"
+  },
+  "requiredFiles": [
+    ".harness/AGENTS.md",
+    ".harness/INDEX.md",
+    ".harness/skills/commit-with-rationale.md",
+    ".harness/skills/deploy-app.md",
+    ".harness/skills/request-from-teammate.md",
+    ".harness/skills/add-corpus.md",
+    "docs/change-reports/TEMPLATE.md",
+    "docs/harness/README.md",
+    "docs/requests/README.md",
+    "docs/requests/TEMPLATE.md",
+    "docs/deployment/records/README.md",
+    "scripts/harness-check.mjs"
+  ],
+  "canonicalCommands": {
+    "harnessCheck": "npm run harness:check",
+    "quality": "npm run check:all",
+    "e2e": "npm run test:all",
+    "localProduction": "npm run build && npm run start",
+    "corpusBuild": "npm run rag:build"
+  },
+  "skills": {
+    "commit": ".harness/skills/commit-with-rationale.md",
+    "deploy": ".harness/skills/deploy-app.md",
+    "request": ".harness/skills/request-from-teammate.md",
+    "corpus": ".harness/skills/add-corpus.md"
+  },
+  "artifactClasses": {
+    "canonical": [
+      ".harness/",
+      "docs/change-reports/",
+      "docs/requests/",
+      "docs/deployment/records/",
+      "src/data/topics.json"
+    ],
+    "derived": [
+      "src/data/topic-embeddings.json",
+      ".next/"
+    ],
+    "ephemeral": [
+      ".tmp/",
+      "next.log",
+      "next.out",
+      "next.err",
+      "next.pid"
+    ]
+  },
+  "owners": {
+    "agent-dev": ["src/agents/", "src/lib/", "src/user/", "app/api/"],
+    "ui-design": ["src/client/", "components/", "app/page.tsx", "app/globals.css"],
+    "feature-design": ["app/api/", ".harness/contracts/", ".harness/evals/", "tests/"],
+    "corpus": ["src/data/", "scripts/"]
+  }
+}

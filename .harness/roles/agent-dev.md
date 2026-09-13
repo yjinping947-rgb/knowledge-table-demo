@@ -15,7 +15,7 @@ team_members: []
 
 ```
 src/lib/ai/              # AI 客户端（OpenAI 兼容）
-src/lib/rag/             # RAG pipeline + 1175 条知乎语料检索
+src/lib/rag/             # RAG pipeline + topics.json 语料检索
 src/lib/fallback/        # 27 路径兜底内容
 src/lib/prompts/         # 提示词模板（含 seats/）
 src/lib/validators/      # Zod 校验
@@ -27,7 +27,7 @@ src/lib/types.ts         # 跨模块类型
 - `src/agents/{director,action,realist,conditional}/` — 5 角色运行时
 - `src/user/` — user 域抽象
 - `.harness/agents/*.md` — 5 角色契约（与 runtime 同步更新）
-- `src/data/topic-embeddings.json` — 1175 × 1536 维向量（生成与维护）
+- `src/data/topic-embeddings.json` — 由当前 topics.json 生成的 1536 维向量（生成与维护）
 
 ## 协作场景
 

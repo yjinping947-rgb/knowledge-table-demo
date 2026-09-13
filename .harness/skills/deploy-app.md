@@ -14,6 +14,10 @@
    └──────── 失败 / Bug ←───────────────┘
 ```
 
+每次部署都要在 [`docs/deployment/records/`](../../docs/deployment/records/) 留一份 `YYYY-MM-DD-HHMM-<mode>.md` 记录。记录 commit、模式、URL、健康检查、测试结果和回滚动作；只记录环境变量名称与“是否存在”，不记录 secret 值。
+
+部署记录应在启动服务或触发云端任务前创建草稿，完成后补齐实际状态。没有 provider 凭据、构建产物或健康检查证据时，只能记录“未部署 / 阻塞”，不能把候选平台或计划步骤写成已上线事实。
+
 ## 模式 1：本地开发（dev server）
 
 适用：边改边看效果。
@@ -52,9 +56,11 @@ npm run test:rag     # 8 RAG 路径
 npm run test:all     # 全部
 ```
 
-### 一键全检查（推荐）
+推荐的可复核顺序是：`npm run harness:check` → `npm run lint` → `npm run typecheck` → `npm run build` → 启动 `npm run start` → 健康检查 → `npm run test:all`。生产服务由当前终端管理时，测试完成后关闭它，并把端口、PID 和日志位置写入部署记录。
 
-部署前**只跑一条命令**就能跑完 lint + typecheck + build + 测试：
+### 构建门禁（推荐）
+
+部署前可以用一条命令完成 lint + typecheck + build：
 
 ```bash
 # 1. 加这个脚本到 package.json（首次设置）
@@ -66,10 +72,9 @@ npm run check:all
 #   npm run lint      # eslint
 #   npm run typecheck  # tsc --noEmit
 #   npm run build      # next build（含运行 TS 校验）
-#   npm run test:all   # 27 路径 + 8 RAG（需要先 npm run start）
 ```
 
-> 实战经验：手动跑 4 个独立命令（lint / typecheck / build / test:all）太烦，封装成 `check:all` 一键搞定。
+服务启动后再单独执行 `npm run test:all`，并把两部分输出都写入部署记录。
 
 > ⚠️ `test:all` 需要 `npm run start` 跑生产服务。如果只是想验证代码（不开服务），用 `npm run test`（单元测试，本项目无 .test.mjs 文件）即可。
 
@@ -100,9 +105,9 @@ Stop-Process -Id <pid> -Force
 - 步骤：lint → build → 启动服务 → 跑 `core-branches.mjs` + `rooms-rag.mjs` → 上传日志
 - 缓存：npm 缓存
 
-## 模式 4：云端部署（占位）
+## 模式 4：云端部署（provider-neutral）
 
-> ⚠️ 当前项目是 demo，**只在本地跑**。云端部署是占位 — 真要上云时再具体化。
+> ⚠️ 当前项目是 demo，**只在本地跑**。当前没有选定真实云平台；下面的云端流程是 provider-neutral 门槛，不代表已经上线。
 > 详见 [`docs/deployment/cloud.md`](../../docs/deployment/cloud.md)。
 
 候选平台：
@@ -127,6 +132,8 @@ Stop-Process -Id <pid> -Force
 8. 回滚：前一版本镜像 + 数据库快照
 ```
 
+选定平台后，再新增对应 provider adapter / CI job，并在部署记录中写清平台、项目、环境、版本和回滚入口。没有平台凭据或未通过本地生产测试时，只能完成配置评审，不能宣称已部署。
+
 ## 部署前检查清单
 
 每次部署前必跑：
@@ -137,7 +144,9 @@ Stop-Process -Id <pid> -Force
 - [ ] `.env.local` 配了 `AI_API_KEY` 和 `AI_BASE_URL`（prod 模式）
 - [ ] `docs/change-reports/` 最近的报告都已 merge
 - [ ] `git status` 无未提交改动
-- [ ] 当前 commit 在 main / develop
+- [ ] 当前分支符合 `.harness/rules/branch-policy.md`；只有面向受保护环境的部署才要求来自指定发布分支
+- [ ] `npm run harness:check` 通过
+- [ ] 已创建部署记录草稿，且不含 secret
 
 ## 部署后健康检查
 

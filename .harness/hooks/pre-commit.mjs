@@ -21,6 +21,7 @@ const isWindows = platform === "win32";
 const resolveCmd = (cmd) => (isWindows && (cmd === "npm" || cmd === "npx") ? `${cmd}.cmd` : cmd);
 
 const steps = [
+  { name: "harness-check", cmd: "npm", args: ["run", "harness:check"] },
   { name: "lint-staged", cmd: "npx", args: ["--no-install", "lint-staged"] },
   { name: "test", cmd: "npm", args: ["test"] },
 ];
