@@ -3,7 +3,7 @@
 // 详见 .harness/agents/director.md
 
 import { seats } from "@/data";
-import { AI_MODEL, getAIClient } from "@/lib/ai";
+import { getAIClient, getAIModel } from "@/lib/ai";
 import {
   directorSystemPrompt,
   discussPrompt,
@@ -37,7 +37,7 @@ export async function runDiscuss(input: {
       conditionalTone,
     ].join("\n\n");
     const completion = await client.chat.completions.create({
-      model: AI_MODEL,
+      model: getAIModel(),
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: discussPrompt(input) },
@@ -71,7 +71,7 @@ export async function runSummary(input: {
 
   try {
     const completion = await client.chat.completions.create({
-      model: AI_MODEL,
+      model: getAIModel(),
       messages: [
         { role: "system", content: summarySystemPrompt },
         { role: "user", content: summaryPrompt(input) },

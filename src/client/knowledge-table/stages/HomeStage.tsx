@@ -5,6 +5,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Topic } from "@/data";
+import { KeySetup } from "../components/KeySetup";
 
 export function HomeStage({ topic, onJoin }: { topic: Topic; onJoin: () => void }) {
   return (
@@ -28,6 +29,9 @@ export function HomeStage({ topic, onJoin }: { topic: Topic; onJoin: () => void 
           加入拼桌 <span>→</span>
         </button>
         <p className="duration">预计体验时间 · {topic.duration}</p>
+        <div className="key-setup-hero">
+          <KeySetup />
+        </div>
       </section>
     </main>
   );

@@ -26,6 +26,7 @@ import { DivergenceStage } from "./stages/DivergenceStage";
 import { FollowupStage } from "./stages/FollowupStage";
 import { PerspectivePreviewStage } from "./stages/PerspectivePreviewStage";
 import { HostStrip } from "./components/HostStrip";
+import { KeySetup } from "./components/KeySetup";
 import { ProgressBar } from "./components/ProgressBar";
 import { SeatCard } from "./components/SeatCard";
 import { UserSeat } from "./components/UserSeat";
@@ -248,6 +249,9 @@ export default function KnowledgeTable({
         <ProgressBar stage={state.stage as Stage} />
         {demoMode ? <span className="demo-badge">演示模式</span> : <span />}
       </header>
+      <div className="key-setup-topbar">
+        <KeySetup />
+      </div>
       <HostStrip text={hostText(state.stage, latest, state.loading, currentTopic.question)} />
       <section className="table-area">
         <div className="seat-grid">

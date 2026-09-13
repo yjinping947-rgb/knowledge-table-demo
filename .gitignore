@@ -20,6 +20,7 @@ next.pid
 
 # agent scratch
 .mavis-trash/
+.workbuddy/
 
 # large embedding files (regenerate via scripts/embed-topics.mjs)
 src/data/topic-embeddings.json

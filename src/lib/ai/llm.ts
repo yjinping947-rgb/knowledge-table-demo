@@ -8,7 +8,7 @@
 //    因此统一把 max_tokens 收紧、temperature 按动作调，避免模型自由发挥。
 // 4. 任何失败都返回 null，由调用方走项目既有的 fallback，绝不向上抛。
 
-import { getAIClient, AI_MODEL } from "./client";
+import { getAIClient, getAIModel } from "./client";
 
 export type LlmCallOptions = {
   system: string;
@@ -87,7 +87,7 @@ export async function callLLM(options: LlmCallOptions): Promise<LlmResult | null
   const t0 = Date.now();
   try {
     const completion = await client.chat.completions.create({
-      model: AI_MODEL,
+      model: getAIModel(),
       messages: [
         { role: "system", content: options.system },
         { role: "user", content: options.user },
