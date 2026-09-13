@@ -17,6 +17,10 @@ export const summaryRequestSchema = z.object({
   confirmedDivergence: z.string().trim().min(2).max(800).optional(),
   perspectiveName: z.string().trim().max(100).optional(),
   perspectiveReframe: z.string().trim().max(800).optional(),
+  // 会话字段（前端可选传，不传则服务端派新房间）
+  sessionId: z.string().trim().max(120).optional(),
+  sessionSignature: z.string().trim().max(64).optional(),
+  userAddedConditions: z.array(z.string().trim().max(200)).max(10).optional().default([]),
 });
 
 export const summaryOutputSchema = z.object({
