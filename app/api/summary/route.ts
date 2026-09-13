@@ -166,6 +166,25 @@ export async function POST(request: Request) {
     authors: results.flatMap((r) => r.top.map((t) => t.author)),
   };
 
+  // ── 旧版流程保持原契约：直接返回四字段结果 ──
+  // 采用 hock1024always 的 flow 分支，但收紧了判定：只有**显式传了别的 flow**
+  // 才走旧契约。`flow` 在 validator 里是 optional，若用 `!== "knowledge-table-v2"`
+  // 判定，那么所有没传 flow 的老调用方（含 tests/rag-quality.mjs）都会被静默
+  // 降级成 retrieval，模型路径根本跑不到 —— 那是隐性回归。
+  if (input.flow !== undefined && input.flow !== "knowledge-table-v2") {
+    return NextResponse.json({
+      consensus: baseFields.consensus,
+      disagreement: baseFields.disagreement,
+      hiddenAssumption: baseFields.hiddenAssumption,
+      openQuestion: baseFields.openQuestion,
+      trajectory: baseFields.trajectory,
+      sourceIds: baseFields.sourceIds,
+      sourceUrls: baseFields.sourceUrls,
+      authors: baseFields.authors,
+      mode: sessionMode("retrieval"),
+    });
+  }
+
   // 组装本桌上下文（让模型不用靠猜）
   // ⚠️ D3 修复：传入的 challenge/response 是**请求体里直接给的字符串**，
   //    可能被伪造。只有拿它跟「语料/本桌已生成内容」无法区分时，才需要防伪标记 ——

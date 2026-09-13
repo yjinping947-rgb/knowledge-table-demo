@@ -54,6 +54,8 @@ function fallbackCandidates(collisionPoint: string, topicTitle: string) {
   ];
 }
 
+type Candidate = { id: string; title: string; detail: string };
+
 export async function POST(request: Request) {
   const parsed = divergenceRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "互质信息不完整" }, { status: 400 });
@@ -105,7 +107,7 @@ export async function POST(request: Request) {
     label: "divergence",
   });
 
-  const candidates = generated?.candidates ?? fallbackCandidates(collisionPoint, topic.title);
+  const candidates: Candidate[] = generated?.candidates ?? fallbackCandidates(collisionPoint, topic.title);
   const mode = generated ? sessionMode("generated") : sessionMode("fallback");
 
   return NextResponse.json({

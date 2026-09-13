@@ -6,7 +6,7 @@ import type { ResponseWithRound, Stage } from "./state";
 export function hostText(stage: Stage, latest?: ResponseWithRound, loading?: boolean, topicTitle = "这个问题"): string {
   if (loading) return "\u201C我在看看，现在最该请谁接话……\u201D";
   if (stage === "intro")
-    return `\u201C我找到了三种看起来都有道理的答案。它们真正争论的，也许不只是「${topicTitle}」。先听听他们怎么说？\u201D`;
+    return `\u201C我先请两席围绕「${topicTitle}」说清楚各自的担心。第三种视角，要等你确认真正的分歧后才会出现。\u201D`;
   if (stage === "tendency")
     return "\u201C两席都说完了。先留下你此刻更靠近哪一边的感觉，它会成为这张桌子的起点。\u201D";
   if (stage === "collision-point")

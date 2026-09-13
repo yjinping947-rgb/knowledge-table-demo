@@ -46,7 +46,6 @@ export async function POST(request: Request) {
     "conditional",
     `${topic.title} ${confirmedDivergence} 保留选择 条件 期限`,
   );
-
   const sessionId = deriveSessionId({
     sessionId: input.sessionId,
     sessionSignature: input.sessionSignature,

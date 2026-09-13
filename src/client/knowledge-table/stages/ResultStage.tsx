@@ -41,7 +41,9 @@ export function ResultStage({
         </span>
       </header>
       <div className="result-body">
-        <div className="mode-line">{summary.mode === "ai" ? "AI 实时生成" : "演示模式生成"}</div>
+        <div className="mode-line">
+          {summary.mode === "ai" || summary.mode === "generated" ? "AI 实时生成" : "演示模式生成"}
+        </div>
         <section className="map-grid">
           <MapCard kind="consensus" label="01 / 共识">
             {summary.consensus}

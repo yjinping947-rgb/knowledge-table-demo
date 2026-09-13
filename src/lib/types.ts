@@ -6,7 +6,7 @@ export type FirstChoice = "support_quit" | "oppose_quit" | "depends";
 export type SecondChoice = "leave_now" | "wait_offer" | "set_deadline";
 export type PositionChange = "unchanged" | "slightly_changed" | "changed";
 export type TendencyChoice = "closer_first" | "closer_second" | "both_valid" | "undecided" | "missed_point";
-export type Mode = "ai" | "fallback";
+export type Mode = "ai" | "generated" | "retrieval" | "fallback";
 
 export type DiscussResult = {
   selectedSeatId: SeatId;
@@ -88,6 +88,7 @@ export type SummaryResult = {
   sourceIds?: string[];
   sourceUrls?: string[];
   authors?: string[];
+  sourceSeats?: SeatId[];
   thoughtTrail?: ThoughtTrail;
   perspective?: PerspectiveResult;
   mode: Mode;

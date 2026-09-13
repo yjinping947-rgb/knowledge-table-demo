@@ -3,7 +3,7 @@
 // 数据在 src/data/topics.json（结构：{ T01: { id, title, seats: { action: [...], realist: [...], conditional: [...] } } }）。
 //
 // 检索策略：
-// 1. 优先用 src/data/topic-embeddings.json（如果存在）做 cosine similarity
+// 1. 优先用 src/data/topic-embeddings.json，兼容已有 src/data/rag-embeddings.json 做 cosine similarity
 // 2. 不存在 embedding 时，按 (authorityLevel desc, keyword 命中数 desc, voteUpCount desc) 排序
 // 这样保证 demo 在没跑过 embedding 也能跑通。
 //
@@ -38,6 +38,10 @@ export type TopicEmbedding = {
   seat: "action" | "realist" | "conditional";
   contentId: string;
   embedding: number[];
+};
+
+export type TopicSourceWithSeat = TopicSource & {
+  seat: "action" | "realist" | "conditional";
 };
 
 // 简化的关键词列表：第一轮 / 第二轮不同 query 的关键词
@@ -81,10 +85,30 @@ export async function listTopics(): Promise<TopicSummary[]> {
 export async function loadTopicEmbeddings(): Promise<TopicEmbedding[] | null> {
   if (cachedEmbeddings !== null) return cachedEmbeddings;
   try {
-    const path = resolve(process.cwd(), "src/data/topic-embeddings.json");
-    const data: TopicEmbedding[] = JSON.parse(await readFile(path, "utf8"));
-    cachedEmbeddings = data;
-    return data;
+    const root = process.cwd();
+    let raw: Array<Partial<TopicEmbedding> & { contentId: string; embedding: number[] }>;
+    try {
+      raw = JSON.parse(await readFile(resolve(root, "src/data/topic-embeddings.json"), "utf8"));
+    } catch {
+      raw = JSON.parse(await readFile(resolve(root, "src/data/rag-embeddings.json"), "utf8"));
+    }
+
+    const topics = await loadTopics();
+    const enriched = raw.flatMap((item) => {
+      if (item.topicId && item.seat) {
+        return [{ topicId: item.topicId, seat: item.seat, contentId: item.contentId, embedding: item.embedding }];
+      }
+      for (const topic of Object.values(topics)) {
+        for (const seat of ["action", "realist", "conditional"] as const) {
+          if (topic.seats[seat].some((source) => source.contentId === item.contentId)) {
+            return [{ topicId: topic.id, seat, contentId: item.contentId, embedding: item.embedding }];
+          }
+        }
+      }
+      return [];
+    });
+    cachedEmbeddings = enriched;
+    return enriched;
   } catch {
     cachedEmbeddings = [];
     return null;
@@ -123,7 +147,7 @@ export async function retrieveFromTopics(
   filter: { topicId: string; seat?: "action" | "realist" | "conditional" },
   k: number,
   hint?: { firstChoice?: string; secondChoice?: string; round?: 1 | 2 },
-): Promise<Array<TopicSource & { score: number }>> {
+): Promise<Array<TopicSourceWithSeat & { score: number }>> {
   const topics = await loadTopics();
   const topic = topics[filter.topicId];
   if (!topic) return [];
@@ -132,10 +156,10 @@ export async function retrieveFromTopics(
     ? [filter.seat]
     : ["action", "realist", "conditional"];
 
-  const candidates: TopicSource[] = [];
+  const candidates: Array<TopicSource & { seat: "action" | "realist" | "conditional" }> = [];
   for (const s of seatsToSearch) {
     for (const src of topic.seats[s]) {
-      candidates.push(src);
+      candidates.push({ ...src, seat: s });
     }
   }
 
