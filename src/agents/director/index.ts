@@ -3,7 +3,7 @@
 // 详见 .harness/agents/director.md
 
 import { seats } from "@/data";
-import { getAIClient, getAIModel } from "@/lib/ai";
+import { callLLMJson } from "@/lib/ai";
 import {
   directorSystemPrompt,
   discussPrompt,
@@ -12,7 +12,7 @@ import {
 } from "@/lib/prompts";
 import { actionTone, conditionalTone, realistTone } from "@/lib/prompts/seats";
 import { getDiscussFallback, getSummaryFallback } from "@/lib/fallback";
-import { discussOutputSchema, parseModelJson, summaryOutputSchema } from "@/lib/validators";
+import { discussOutputSchema, summaryOutputSchema } from "@/lib/validators";
 import type { DiscussResult, FirstChoice, Mode, PositionChange, SecondChoice, SummaryResult } from "@/lib/types";
 
 /**
@@ -26,33 +26,32 @@ export async function runDiscuss(input: {
   respondedSeatIds: string[];
 }): Promise<DiscussResult> {
   const fallback = getDiscussFallback(input.round, input.firstChoice, input.secondChoice);
-  const client = getAIClient();
-  if (!client) return fallback;
+  const systemPrompt = [
+    directorSystemPrompt,
+    actionTone,
+    realistTone,
+    conditionalTone,
+  ].join("\n\n");
 
-  try {
-    const systemPrompt = [
-      directorSystemPrompt,
-      actionTone,
-      realistTone,
-      conditionalTone,
-    ].join("\n\n");
-    const completion = await client.chat.completions.create({
-      model: getAIModel(),
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: discussPrompt(input) },
-      ],
-    });
-    const parsed = discussOutputSchema.parse(parseModelJson(completion.choices[0]?.message?.content || ""));
-    const seat = seats.find((item) => item.id === parsed.selectedSeatId);
-    if (!seat || parsed.sourceIds.some((id) => !seat.sourceIds.includes(id))) {
-      throw new Error("模型返回了不允许的来源");
-    }
-    return { ...parsed, mode: "ai" satisfies Mode };
-  } catch (error) {
-    if (process.env.NODE_ENV === "development") console.error("AI discuss fallback:", error);
+  // 统一走 callLLMJson（thinking=disabled）。原先直接调 client.chat.completions.create
+  // 且不传 thinking，会跑在 DeepSeek 默认思考模式下，白白烧掉思维链预算。
+  const parsed = await callLLMJson({
+    system: systemPrompt,
+    user: discussPrompt(input),
+    parse: (raw) => discussOutputSchema.parse(raw),
+    temperature: 0.7,
+    thinking: "disabled",
+    maxTokens: 900,
+    label: "director:discuss",
+  });
+  if (!parsed) return fallback;
+
+  const seat = seats.find((item) => item.id === parsed.selectedSeatId);
+  if (!seat || parsed.sourceIds.some((id) => !seat.sourceIds.includes(id))) {
+    if (process.env.NODE_ENV === "development") console.warn("AI discuss: 模型返回了不允许的来源，走 fallback");
     return fallback;
   }
+  return { ...parsed, mode: "ai" satisfies Mode };
 }
 
 /**
@@ -66,21 +65,17 @@ export async function runSummary(input: {
   respondedSeatIds: string[];
 }): Promise<SummaryResult> {
   const fallback = getSummaryFallback(input.firstChoice, input.secondChoice, input.positionChange);
-  const client = getAIClient();
-  if (!client) return fallback;
 
-  try {
-    const completion = await client.chat.completions.create({
-      model: getAIModel(),
-      messages: [
-        { role: "system", content: summarySystemPrompt },
-        { role: "user", content: summaryPrompt(input) },
-      ],
-    });
-    const parsed = summaryOutputSchema.parse(parseModelJson(completion.choices[0]?.message?.content || ""));
-    return { ...parsed, mode: "ai" satisfies Mode };
-  } catch (error) {
-    if (process.env.NODE_ENV === "development") console.error("AI summary fallback:", error);
-    return fallback;
-  }
+  // 同上：统一走 callLLMJson，固化 thinking=disabled。
+  const parsed = await callLLMJson({
+    system: summarySystemPrompt,
+    user: summaryPrompt(input),
+    parse: (raw) => summaryOutputSchema.parse(raw),
+    temperature: 0.7,
+    thinking: "disabled",
+    maxTokens: 900,
+    label: "director:summary",
+  });
+  if (!parsed) return fallback;
+  return { ...parsed, mode: "ai" satisfies Mode };
 }

@@ -4,11 +4,11 @@ import { Fragment } from "react";
 import type { Stage } from "../state";
 
 export function ProgressBar({ stage }: { stage: Stage }) {
-  const firstGroup: Stage[] = ["intro"];
+  const firstGroup: Stage[] = ["intro", "first-seat", "second-seat"];
   const secondGroup: Stage[] = ["tendency"];
-  const thirdGroup: Stage[] = ["collision-point", "collision-response"];
+  const thirdGroup: Stage[] = ["collision-point", "collision-drag", "collision-response"];
   const fourthGroup: Stage[] = ["divergence", "perspective-preview"];
-  const fifthGroup: Stage[] = ["third-seat", "result"];
+  const fifthGroup: Stage[] = ["third-seat", "exit-understanding", "result"];
   const groups = [firstGroup, secondGroup, thirdGroup, fourthGroup, fifthGroup];
   const activeIndex = groups.findIndex((group) => group.includes(stage));
 

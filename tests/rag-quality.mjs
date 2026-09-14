@@ -37,8 +37,8 @@ async function check(name, fn) {
 
 // —— /api/discuss RAG 质量 ——
 
-// 1. firstChoice=support_quit → mode=ai
-await check("discuss support_quit → mode=ai", async () => {
+// 1. 无模型配置时允许明确 fallback；有配置时可以是 generated / retrieval / ai。
+await check("discuss support_quit → 明确模式", async () => {
   const r = await post("/api/discuss", {
     round: 1,
     firstChoice: "support_quit",

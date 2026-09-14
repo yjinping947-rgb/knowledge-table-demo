@@ -1,22 +1,27 @@
 // src/lib/rag/client.ts
-// RAG 用的 embedding 客户端。复用 src/lib/ai 的 client 思路。
+// RAG 用的 embedding 客户端。复用 src/lib/ai 的配置层。
 
 import OpenAI from "openai";
+import { getAiConfig } from "@/lib/ai/config";
 
 const EMBED_MODEL = "text-embedding-3-small";
 const EMBED_DIM = 1536;
 
 let cachedClient: OpenAI | null = null;
+let cachedSignature = "";
 
 function getClient(): OpenAI | null {
-  if (cachedClient !== null) return cachedClient;
-  const apiKey = process.env.AI_API_KEY;
-  const baseURL = process.env.AI_BASE_URL;
-  if (!apiKey || !baseURL) {
-    cachedClient = null;
-    return null;
-  }
+  const { apiKey, baseUrl: baseURL } = getAiConfig();
+  if (!apiKey || !baseURL) return null;
+
+  // ⚠️ 修复两个问题：
+  // 1) 旧实现把 null 也缓存了 —— 一旦首次调用时还没配 key，之后永远返回 null，
+  //    队友在页面上补填 key 也不生效。
+  // 2) 配置变了（页面填/改 key、换网关）必须重建客户端，否则还连着旧配置。
+  const signature = `${apiKey}@${baseURL}`;
+  if (cachedClient && cachedSignature === signature) return cachedClient;
   cachedClient = new OpenAI({ apiKey, baseURL, timeout: 30_000, maxRetries: 1 });
+  cachedSignature = signature;
   return cachedClient;
 }
 

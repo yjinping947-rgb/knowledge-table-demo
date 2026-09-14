@@ -8,7 +8,9 @@
 // PRD 6.9 要求候选「必须绑定对话证据」，所以候选里带 conversationQuoteIds。
 
 import { NextResponse } from "next/server";
+
 import { loadTopics } from "@/lib/rag/topics";
+import { makeRequestMeta } from "@/lib/session/rag";
 import { callLLMJson } from "@/lib/ai/llm";
 import { deriveSessionId, getSession, issueSessionToken, renderSessionContext, upsertSession } from "@/lib/ai/session";
 import { sanitizeConditions, sanitizeText } from "@/lib/session/guard";
@@ -61,6 +63,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "互质信息不完整" }, { status: 400 });
 
   const input = parsed.data;
+  const meta = makeRequestMeta(input, input.topicId);
   const topic = (await loadTopics())[input.topicId];
   if (!topic) return NextResponse.json({ error: `话题 ${input.topicId} 不存在` }, { status: 404 });
 
@@ -111,11 +114,13 @@ export async function POST(request: Request) {
   const mode = generated ? sessionMode("generated") : sessionMode("fallback");
 
   return NextResponse.json({
+    ...meta,
     ...issueSessionToken(sessionId),
-    candidates: candidates.map((c, i) => ({
+    candidates: candidates.map((c) => ({
       ...c,
-      // PRD 12.3 要求候选可回溯到本桌对话证据
-      conversationQuoteIds: [`challenge_${i + 1}`, `response_${i + 1}`],
+      // PRD 12.3 / 6.9：候选必须能回溯到本桌对话证据。
+      // 这两个 id 由 /api/collision 的 conversationQuoteIds 提供，保持全链路一致。
+      conversationQuoteIds: ["collision-challenge", "collision-response"],
     })),
     mode,
   });

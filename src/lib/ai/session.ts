@@ -108,9 +108,13 @@ export function appendFollowup(sessionId: string, record: FollowupRecord): void 
  * 就能读到别人填的隐私条件（月薪、房贷、身份证）。现在改成高熵随机 id，
  * 攻击者无法枚举出别人的房间。
  *
- * 客户端传来的 id 也不直接信任 —— 必须先过 guard.ts 的形态白名单 + 签名校验，
- * 不合法的一律丢弃换新房间（resolved.rejected=true 只进日志）。
+ * 客户端传来的 id 会先过 guard.ts 的形态校验：
+ *   - 合法（字母数字/下划线/连字符，8-120 位）→ 原样复用。
+ *     必须原样回显，因为前端用 responseMatchesRequest 比对 sessionId，
+ *     不一致会整段降级；客户端本身就是 randomUUID 生成的高熵 id。
+ *   - 旧式 `anon_*` 或含特殊字符 → 丢弃换新房间（这条才是 D1 枚举攻击的入口）。
  */
+
 export function deriveSessionId(input: {
   sessionId?: string;
   sessionSignature?: string;

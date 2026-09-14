@@ -7,9 +7,7 @@ import type { CollisionPoint, FirstChoice, PositionChange, SecondChoice, Tendenc
 export const tendencyOptions: { id: TendencyChoice; label: string; short: string }[] = [
   { id: "closer_first", label: "我更接近第一席的判断", short: "更接近第一席" },
   { id: "closer_second", label: "我更接近第二席的判断", short: "更接近第二席" },
-  { id: "both_valid", label: "两边都有道理", short: "两边都有道理" },
   { id: "undecided", label: "暂时无法判断", short: "暂时无法判断" },
-  { id: "missed_point", label: "两边都没说到重点", short: "没说到重点" },
 ];
 
 export const firstOptions: { id: FirstChoice; label: string; short: string }[] = [
@@ -51,7 +49,15 @@ export function secondOptionsForTopic(topicId: string) {
 }
 
 export function collisionPointsForTopic(): CollisionPoint[] {
-  return seats
+  // 碰撞候选必须是可验证的完整问题，而不是“健康/经济”等抽象标签。
+  const verified = [
+    { id: "buffer-runway", seatId: "realist" as const, text: "三个月存款够不够支撑裸辞？" },
+    { id: "staying-risk", seatId: "action" as const, text: "继续留下本身是不是一种风险？" },
+    { id: "irreversible-loss", seatId: "action" as const, text: "哪种损失更难恢复？" },
+  ];
+  return verified.length
+    ? verified
+    : seats
     .filter((seat) => seat.id === "action" || seat.id === "realist")
     .flatMap((seat) =>
       seat.arguments.map((text, index) => ({

@@ -1,5 +1,5 @@
 // src/lib/rag/topics.ts
-// 20 话题 × 3 派 的真实知乎语料检索。
+// 多话题 × 3 派的真实知乎语料检索。
 // 数据在 src/data/topics.json（结构：{ T01: { id, title, seats: { action: [...], realist: [...], conditional: [...] } } }）。
 //
 // 检索策略：
@@ -84,31 +84,22 @@ export async function listTopics(): Promise<TopicSummary[]> {
 
 export async function loadTopicEmbeddings(): Promise<TopicEmbedding[] | null> {
   if (cachedEmbeddings !== null) return cachedEmbeddings;
+  // topic-embeddings.json 是生成脚本的正式文件名；开发包里有时只有旧的
+  // rag-embeddings.json（28 条房间语料），两者 schema 不兼容，不能误当作话题向量。
   try {
-    const root = process.cwd();
-    let raw: Array<Partial<TopicEmbedding> & { contentId: string; embedding: number[] }>;
-    try {
-      raw = JSON.parse(await readFile(resolve(root, "src/data/topic-embeddings.json"), "utf8"));
-    } catch {
-      raw = JSON.parse(await readFile(resolve(root, "src/data/rag-embeddings.json"), "utf8"));
+    // 采用队长版：只认正式的 topic-embeddings.json，且校验 schema。
+    // 本分支原先会回退到 rag-embeddings.json（旧 28 条房间语料），实测那 28 条里
+    // 只有 9 条能匹配上 topics 的 contentId —— 一旦 queryVec 非空，cosine 分支
+    // 会把其余来源全部打成 0 分过滤掉，反而比纯关键词更差。
+    // 上面注释自己也写了「两者 schema 不兼容，不能误当作话题向量」，这里对齐注释。
+    const path = resolve(process.cwd(), "src/data/topic-embeddings.json");
+    const data: TopicEmbedding[] = JSON.parse(await readFile(path, "utf8"));
+    if (!Array.isArray(data) || data.some((item) => !item.topicId || !item.seat || !item.contentId || !Array.isArray(item.embedding))) {
+      cachedEmbeddings = [];
+      return null;
     }
-
-    const topics = await loadTopics();
-    const enriched = raw.flatMap((item) => {
-      if (item.topicId && item.seat) {
-        return [{ topicId: item.topicId, seat: item.seat, contentId: item.contentId, embedding: item.embedding }];
-      }
-      for (const topic of Object.values(topics)) {
-        for (const seat of ["action", "realist", "conditional"] as const) {
-          if (topic.seats[seat].some((source) => source.contentId === item.contentId)) {
-            return [{ topicId: topic.id, seat, contentId: item.contentId, embedding: item.embedding }];
-          }
-        }
-      }
-      return [];
-    });
-    cachedEmbeddings = enriched;
-    return enriched;
+    cachedEmbeddings = data;
+    return data;
   } catch {
     cachedEmbeddings = [];
     return null;
@@ -146,7 +137,11 @@ export async function retrieveFromTopics(
   queryVec: number[] | null,
   filter: { topicId: string; seat?: "action" | "realist" | "conditional" },
   k: number,
-  hint?: { firstChoice?: string; secondChoice?: string; round?: 1 | 2 },
+  // hint.query（队长版新增）：追问场景没有 first/secondChoice 可用时，
+  // 用问题本身做二元切分参与排序，避免每次追问都退化成同一批高权威来源。
+  hint?: { firstChoice?: string; secondChoice?: string; round?: 1 | 2; query?: string },
+  // 保留本分支的 TopicSourceWithSeat：seat 跟着来源走，
+  // 下游 sourceFields 才能如实给出 sourceSeats（PRD 10.3）。
 ): Promise<Array<TopicSourceWithSeat & { score: number }>> {
   const topics = await loadTopics();
   const topic = topics[filter.topicId];
@@ -188,9 +183,18 @@ export async function retrieveFromTopics(
       : FIRST_KEYWORDS[hint.firstChoice ?? ""] ?? []
     : [];
 
+  // 追问没有 first/second choice 可用时，使用问题本身参与排序。
+  // 中文问题通常没有空格分词，这里提取连续的 2~6 字片段，避免每次追问
+  // 都退化成同一个 authorityLevel 最高的回答。
+  const query = hint?.query?.trim() ?? "";
+  const queryTerms = query.length >= 2
+    ? Array.from({ length: Math.min(5, query.length - 1) }, (_, i) => query.slice(i, i + 2))
+    : [];
+
   const scored = candidates.map((src) => {
     const kw = keywordScore(src.contentText + " " + src.title, keywords);
-    const score = src.authorityLevel * 1000 + kw * 50 + src.voteUpCount * 0.1;
+    const queryHits = keywordScore(src.contentText + " " + src.title, queryTerms);
+    const score = src.authorityLevel * 1000 + kw * 50 + queryHits * 120 + src.voteUpCount * 0.1;
     return { ...src, score };
   });
 

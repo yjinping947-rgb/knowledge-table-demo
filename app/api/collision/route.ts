@@ -1,18 +1,30 @@
 // app/api/collision/route.ts
 // 碰撞：另一席质疑 → 原席回应 → 主持人点出双方真正不同的地方。
 //
-// 接通 LLM 后的变化（对比旧版）：
-//   旧：challenge/response 各是 2 种硬编码变体 + 语料摘录，两席彼此不知情
-//   新：一次调用同时产出质疑与回应（模型能看见对方的立场），主持人的 hostComment 也由模型生成
+// 关键设计（保留自本分支）：质疑和回应必须**一起生成**。分开调两次 API 的话，
+// 质疑方看不到对方会怎么回应，容易变成两段互不相干的独白 —— 这正是 PRD 6.8
+// 禁止的"只复述整篇来源"。一次调用让两段话互为上下文，同时省掉一半往返时间。
 //
-// 关键：质疑和回应必须一起生成。分开调两次 API 的话，模型不知道对方会说什么，
-// 就会变成两段互不相干的独白 —— 这正是 PRD 6.8 禁止的"只复述整篇来源"。
+// 合并记录（三条实现线取长补短）：
+// - 生成方式：保留本分支的 collisionPrompt 单次调用（队长版是两次串行
+//   generateSeatReply，质疑无法预判回应）。
+// - 上下文：吸收队长版的两席原话（firstSeatStatement / secondSeatStatement），
+//   让质疑能盯着对方真实说过的内容，而不是凭空发问。
+// - 保留本分支：会话记忆（renderSessionContext）+ 对抗清洗 + mode 如实标注。
+// - 保留队长版：二次席位校验、conversationQuoteIds 契约字段。
 
 import { NextResponse } from "next/server";
+
 import { loadTopics } from "@/lib/rag/topics";
-import { retrieveSessionSources, sourceExcerpt, sourceFields } from "@/lib/session/rag";
+import { makeRequestMeta, retrieveSessionSources, sourceExcerpt, sourceFields } from "@/lib/session/rag";
 import { callLLMJson } from "@/lib/ai/llm";
-import { deriveSessionId, getSession, issueSessionToken, renderSessionContext, upsertSession } from "@/lib/ai/session";
+import {
+  deriveSessionId,
+  getSession,
+  issueSessionToken,
+  renderSessionContext,
+  upsertSession,
+} from "@/lib/ai/session";
 import { sanitizeConditions, sanitizeText } from "@/lib/session/guard";
 import { seatNames } from "@/lib/prompts/seats/persona";
 import { collisionPrompt, renderEvidence } from "@/lib/prompts/actions";
@@ -40,10 +52,18 @@ export async function POST(request: Request) {
   const collisionPoint = sanitizeText(input.collisionPoint);
 
   // 两席各自检索各自的证据 —— 来源不能跨席位（PRD 17.3）
-  const [challengeSources, responseSources] = await Promise.all([
+  const [challengeSourcesRaw, responseSourcesRaw] = await Promise.all([
     retrieveSessionSources(input.topicId, opposingSeat, `${topic.title} 质疑 ${collisionPoint}`),
     retrieveSessionSources(input.topicId, originalSeat, `${topic.title} 回应 ${collisionPoint}`),
   ]);
+  // 二次校验：检索器已按席位过滤，这里再拿主题下的席位归属反查一次，
+  // 防止未来检索器改动导致来源串席（队长版）。
+  const challengeSources = challengeSourcesRaw.filter((source) =>
+    topic.seats[opposingSeat].some((item) => item.contentId === source.contentId),
+  );
+  const responseSources = responseSourcesRaw.filter((source) =>
+    topic.seats[originalSeat].some((item) => item.contentId === source.contentId),
+  );
 
   const sessionId = deriveSessionId({
     sessionId: input.sessionId,
@@ -59,11 +79,23 @@ export async function POST(request: Request) {
   });
   const session = getSession(sessionId)!;
 
+  // 队长版的两席原话 —— 让质疑盯住对方真正说过的东西（PRD 6.8）
+  const seatStatements = [
+    input.firstSeatStatement ? `【第一席原话】${sanitizeText(input.firstSeatStatement).slice(0, 600)}` : "",
+    input.secondSeatStatement ? `【第二席原话】${sanitizeText(input.secondSeatStatement).slice(0, 600)}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const sessionContext = [renderSessionContext(session, seatNames), seatStatements]
+    .filter(Boolean)
+    .join("\n\n");
+
   const prompt = collisionPrompt({
     selectedSeatId: originalSeat,
     opposingSeat,
     collisionPoint,
-    sessionContext: renderSessionContext(session, seatNames),
+    sessionContext,
     challengeEvidence: renderEvidence(challengeSources),
     responseEvidence: renderEvidence(responseSources),
   });
@@ -103,6 +135,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({
+    ...makeRequestMeta(input, input.topicId),
     ...issueSessionToken(sessionId),
     challenge: {
       seatId: opposingSeat,
@@ -114,9 +147,8 @@ export async function POST(request: Request) {
       reply: responseReply,
       ...sourceFields(responseSources, originalSeat),
     },
-    hostComment:
-      generated?.hostComment ||
-      `围绕「${collisionPoint}」，两席完成了一次质疑与回应。`,
+    hostComment: generated?.hostComment || `围绕「${collisionPoint}」，两席完成了一次质疑与回应。`,
+    conversationQuoteIds: ["collision-challenge", "collision-response"],
     mode,
     // 未生成时把原始证据片段附在末尾，保证降级状态下也不是空话
     ...(generated ? {} : { degradationNote: sourceExcerpt(challengeSources[0], "", 150) }),

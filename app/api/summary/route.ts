@@ -1,280 +1,307 @@
 // app/api/summary/route.ts
 // 结果卡：把这桌讨论压成「讨论地图 + 灵魂金句」。
 //
-// 接通 LLM 后的变化（对比旧版）：
-//   旧：consensus/disagreement/hiddenAssumption/openQuestion 四个 Zod 必填字段
-//       全是语料摘录；soulSentence / discussionMap 字段根本不存在
-//   新：模型基于本桌真实对话生成 heart 字段，同时补齐 PRD 7.3 要求的
-//       discussionMap（中心问题 + ≤3 外围发现 + 轨迹）与 soulSentence
-//
-// 兼容：前端 ResultStage 现在读的 consensus/disagreement/... 字段保留不动，
-// 新增字段是增量，不破坏既有渲染。
+// 合并记录（三条实现线取长补短）：
+// - 架构采用队长版，理由（按重要性排序）：
+//   1) 隐私：只把**粗粒度的可分享状态**喂给模型，用户的追问、补充条件、
+//      离桌文字一律不进 prompt —— 那些可能含私密信息，不能进可分享的结果卡。
+//   2) 第三席规则在解析后强制：prompt 指令不是安全边界，未邀请的第三席
+//      不会因为模型自由发挥就出现在结果卡里。
+//   3) mode 诚实：fallback / retrieval / generated 三态各有明确触发条件，
+//      不把"只检索未生成"伪装成最终答案。
+// - LLM 调用改走本分支的统一 callLLM，固化 thinking=disabled。
+//   队长原实现直接调 client.chat.completions.create 且不传 thinking，
+//   会跑在 DeepSeek 默认思考模式下（实测 9.1s / 1832 思维链 token）。
+// - 增加本分支的 guard 清洗：进 prompt 之前先去掉控制字符与注入载荷。
 
 import { NextResponse } from "next/server";
-import { summaryRequestSchema } from "@/lib/validators";
-import { retrieveFromTopics } from "@/lib/rag";
-import { loadTopics } from "@/lib/rag/topics";
+
 import { getSummaryFallback } from "@/lib/fallback";
+import { embedQuery, retrieveFromTopics, loadTopics } from "@/lib/rag";
 import { callLLMJson } from "@/lib/ai/llm";
-import { deriveSessionId, getSession, issueSessionToken, renderSessionContext, upsertSession } from "@/lib/ai/session";
-import { sanitizeConditions, sanitizeText } from "@/lib/session/guard";
-import { seatNames } from "@/lib/prompts/seats/persona";
-import { summaryPrompt } from "@/lib/prompts/actions";
-import { sessionMode } from "@/lib/session/mode";
-import type { SeatId } from "@/lib/types";
-import { z } from "zod";
+import { makeRequestMeta } from "@/lib/session/rag";
+import { sanitizeText } from "@/lib/session/guard";
+import { discussionMapSchema, summaryRequestSchema } from "@/lib/validators";
+import type {
+  DiscussionMap,
+  FirstChoice,
+  PositionChange,
+  SecondChoice,
+  SeatId,
+  SourceReference,
+  SummaryResult,
+} from "@/lib/types";
 
-const mapOutputSchema = z.object({
-  question: z.string().trim().min(1).max(60),
-  ripples: z
-    .array(
-      z.object({
-        label: z.string().trim().min(2).max(12),
-        type: z.enum(["conflict", "premise", "perspective", "open"]),
-        sourceSeat: z.enum(["action", "realist", "conditional", "user"]),
-      }),
-    )
-    .min(1)
-    .max(3),
-  soulSentence: z.string().trim().min(1).max(80),
-});
-
-const tendencyLabels = {
-  closer_first: "更接近第一席",
-  closer_second: "更接近第二席",
-  both_valid: "认为两边都有道理",
-  undecided: "暂时无法判断",
-  missed_point: "认为两边都没说到重点",
+const labels = {
+  first: { support_quit: "更接近第一席", oppose_quit: "更接近第二席", depends: "暂时无法判断" },
+  second: { leave_now: "选择先离开", wait_offer: "选择先等下家", set_deadline: "选择设定边界" },
+  change: { unchanged: "核心立场保持不变", slightly_changed: "保留原方向并补充条件", changed: "主要判断发生变化" },
 } as const;
 
-function buildThoughtTrail(
-  input: ReturnType<typeof summaryRequestSchema.parse>,
+/**
+ * 第三席只有在"明确邀请"且有已生成的视角名称时才算真正入桌。
+ * 请求体本身来自客户端，不能仅相信 thirdSeatInvited 这个布尔值。
+ */
+function hasInvitedThirdSeat(input: { thirdSeatInvited?: boolean; perspectiveName?: string }): boolean {
+  return input.thirdSeatInvited === true && Boolean(input.perspectiveName?.trim());
+}
+
+function buildDiscussionMap(
+  input: { tendency?: string; secondChoice: SecondChoice; thirdSeatInvited?: boolean; perspectiveName?: string },
   topicTitle: string,
-) {
-  const tendency = input.tendency ? tendencyLabels[input.tendency] : "根据条件判断";
+): DiscussionMap {
+  const thirdSeatInvited = hasInvitedThirdSeat(input);
+  const ripples: DiscussionMap["ripples"] = [
+    { label: "健康与现金", type: "conflict", sourceSeat: "action" },
+    { label: "安全线在哪", type: "premise", sourceSeat: "realist" },
+  ];
+  ripples.push(
+    thirdSeatInvited
+      ? { label: "保留选择权", type: "perspective", sourceSeat: "conditional" }
+      : { label: "仍需确认", type: "premise" },
+  );
+  const start: DiscussionMap["trajectory"]["start"] =
+    input.tendency === "closer_first" ? "action" : input.tendency === "closer_second" ? "realist" : "undecided";
+  const end: DiscussionMap["trajectory"]["end"] = thirdSeatInvited
+    ? "conditional"
+    : input.secondChoice === "leave_now"
+      ? "action"
+      : input.secondChoice === "wait_offer"
+        ? "realist"
+        : "undecided";
+  const checkpoints: DiscussionMap["trajectory"]["checkpoints"] = ["collision"];
+  if (thirdSeatInvited) checkpoints.push("conditional");
+  const normalizedTitle = topicTitle.trim() === "裸辞" ? "年轻人该不该裸辞" : topicTitle.trim();
+  const question = /[？?。！!]$/.test(normalizedTitle) ? normalizedTitle : `${normalizedTitle}？`;
+  return { question, ripples: ripples.slice(0, 3), trajectory: { start, checkpoints, end } };
+}
+
+function buildSoulSentence(input: {
+  secondChoice: SecondChoice;
+  confirmedDivergence?: string;
+  exitUnderstanding?: string;
+  thirdSeatInvited?: boolean;
+}): string {
+  // 离桌表达会参与语义判断，但不逐字进入可分享金句，避免把用户可能
+  // 填入的私密补充直接带进系统分享面板。
+  const departureMentionsLoss = /损失|代价|健康|现金|风险/.test(input.exitUnderstanding ?? "");
+  if (departureMentionsLoss) return "你不是在选辞不辞，而是在选哪种代价更能承受。";
+  if (input.confirmedDivergence?.includes("损失")) return "你不是在选辞不辞，而是在选哪种代价更能承受。";
+  if (input.thirdSeatInvited) return "把不可逆的代价看清，才知道下一步要保留什么。";
+  if (input.secondChoice === "wait_offer") return "等待不是没有代价，而是把安全线说清楚再走。";
+  if (input.secondChoice === "leave_now") return "离开可以止损，但也要给生活留出可回头的空间。";
+  return "先把条件和期限写下来，判断就不必停在一句'看情况'。";
+}
+
+function buildThoughtTrail(input: ReturnType<typeof summaryRequestSchema.parse>, topicTitle: string) {
+  const tendencyLabel =
+    input.tendency === "closer_first"
+      ? labels.first.support_quit
+      : input.tendency === "closer_second"
+        ? labels.first.oppose_quit
+        : labels.first.depends;
   return {
-    tendency: `最初，你${tendency}。`,
+    tendency: `最初，你${tendencyLabel}。`,
     collisionPoint: `你选中了「${input.collisionPoint ?? "尚未记录具体碰撞点"}」。`,
     challenge: `带来动摇的质疑：${input.challenge ?? "质疑尚未记录"}`,
     response: `原席位的回应：${input.response ?? "回应尚未记录"}`,
     turningPoint: `这次互质让「${topicTitle}」从立场选择变成了对条件、代价和时间点的判断。`,
     confirmedDivergence: `你确认的隐藏分歧：${input.confirmedDivergence ?? "尚未确认"}`,
-    perspective: `第三知识视角：${
-      input.perspectiveName
-        ? `${input.perspectiveName}${input.perspectiveReframe ? `：${input.perspectiveReframe}` : ""}`
-        : "尚未邀请第三席"
-    }`,
-    departure: "离桌时，你不必立刻做出决定；你已经知道下一次要观察什么信号、保护什么底线。",
+    perspective: hasInvitedThirdSeat(input)
+      ? `第三知识视角：${input.perspectiveName}`
+      : "第三席未正式入桌，本卡保留未解问题。",
+    departure: "离桌时，你不必立刻决定裸辞；你已经知道下一次要观察什么信号、保护什么底线。",
   };
 }
 
-/** 轨迹：起止都从已有状态推导（PRD 7.4 只允许 action/realist/conditional/undecided） */
-function buildTrajectory(input: ReturnType<typeof summaryRequestSchema.parse>) {
-  const start: SeatId | "undecided" =
-    input.tendency === "closer_first"
-      ? "action"
-      : input.tendency === "closer_second"
-        ? "realist"
-        : "undecided";
-  const end: SeatId | "undecided" = input.perspectiveName
-    ? "conditional"
-    : input.tendency === "closer_first"
-      ? "action"
-      : input.tendency === "closer_second"
-        ? "realist"
-        : "undecided";
-  return { start, end };
+function normalizeSources(
+  results: Array<{ seat: SeatId; top: Awaited<ReturnType<typeof retrieveFromTopics>> }>,
+): SourceReference[] {
+  const seen = new Set<string>();
+  const refs: SourceReference[] = [];
+  for (const result of results)
+    for (const source of result.top) {
+      if (seen.has(source.contentId)) continue;
+      seen.add(source.contentId);
+      refs.push({
+        id: source.contentId,
+        seatId: result.seat,
+        title: source.title,
+        url: source.url,
+        author: source.author,
+        kind: "knowledge",
+      });
+    }
+  return refs;
 }
 
-/** 生成失败时的结果卡兜底 */
-function fallbackCard(
+/**
+ * 用模型细化讨论地图与灵魂金句。
+ * 失败（无配置 / 超时 / JSON 不合法 / 校验不过）一律返回 null，由调用方降级。
+ */
+async function generateWithModel(
   input: ReturnType<typeof summaryRequestSchema.parse>,
   topicTitle: string,
-) {
-  const thirdSeatIn = Boolean(input.perspectiveName);
-  const ripples = [
-    { label: "代价权衡", type: "conflict" as const, sourceSeat: "action" as const },
-    { label: "缓冲够吗", type: "premise" as const, sourceSeat: "realist" as const },
-    thirdSeatIn
-      ? { label: "选择边界", type: "perspective" as const, sourceSeat: "conditional" as const }
-      : { label: "仍未解决", type: "open" as const, sourceSeat: "user" as const },
-  ];
+  base: SummaryResult,
+): Promise<SummaryResult | null> {
+  const thirdSeatInvited = hasInvitedThirdSeat(input);
+  // 只把粗粒度、可分享的路径状态交给最终卡片生成器。
+  // 用户追问、补充条件与离桌文字可能含私密信息，绝不能复制进可分享的卡片。
+  const shareSafePath = {
+    firstChoice: input.firstChoice,
+    secondChoice: input.secondChoice,
+    positionChange: input.positionChange,
+    tendency: input.tendency,
+    thirdSeatInvited,
+    perspectiveName: thirdSeatInvited ? input.perspectiveName : undefined,
+    hasConfirmedDivergence: Boolean(input.confirmedDivergence),
+    hasDepartureReflection: Boolean(input.exitUnderstanding),
+  };
+
+  const result = await callLLMJson({
+    system: "你是知识拼桌主持人。不要评价对错，不替用户做决定，不编造事实。",
+    user: `固定话题：${topicTitle}
+可分享的路径状态：${JSON.stringify(shareSafePath)}
+已有地图：${JSON.stringify(base.discussionMap)}
+返回 JSON：{discussionMap:{question,ripples,trajectory},soulSentence}。ripples 最多 3 项且每个 label 2—8 个汉字；soulSentence 不超过 40 字；不要臆测用户心理，不要把未邀请的第三席写成既成事实。`,
+    temperature: 0.25,
+    // 非思考模式：结果卡是结构化输出（问题+3 标签+金句），无需思维链
+    thinking: "disabled",
+    maxTokens: 900,
+    label: "summary",
+    parse: (raw) => {
+      const parsed = raw as { discussionMap?: unknown; soulSentence?: unknown };
+      const checkedMap = discussionMapSchema.safeParse(parsed.discussionMap);
+      if (!checkedMap.success) throw new Error("discussionMap 校验失败");
+      if (typeof parsed.soulSentence !== "string" || parsed.soulSentence.length === 0) {
+        throw new Error("soulSentence 缺失");
+      }
+      return { map: checkedMap.data, soulSentence: parsed.soulSentence };
+    },
+  });
+
+  if (!result) return null;
+
+  const generatedMap = result.map;
+  // prompt 指令不是安全边界。解析后再强制一次第三席规则，
+  // 未邀请的第三视角不会作为"已完成的回合"出现在结果卡里。
+  const discussionMap: DiscussionMap = thirdSeatInvited
+    ? generatedMap
+    : {
+        ...generatedMap,
+        ripples: generatedMap.ripples
+          .filter((ripple) => ripple.sourceSeat !== "conditional")
+          .map((ripple) => (ripple.type === "perspective" ? { ...ripple, type: "premise" as const } : ripple))
+          .slice(0, 3),
+        trajectory: {
+          start:
+            generatedMap.trajectory.start === "conditional"
+              ? base.discussionMap!.trajectory.start
+              : generatedMap.trajectory.start,
+          checkpoints: generatedMap.trajectory.checkpoints.filter((checkpoint) => checkpoint !== "conditional"),
+          end:
+            generatedMap.trajectory.end === "conditional"
+              ? base.discussionMap!.trajectory.end
+              : generatedMap.trajectory.end,
+        },
+      };
+
   return {
-    question: `该不该继续「${topicTitle}」`,
-    ripples,
-    soulSentence: "你不是在选走还是留，而是在选哪种代价你更愿意承担。",
+    ...base,
+    discussionMap,
+    soulSentence: result.soulSentence.slice(0, 40),
+    mode: "generated",
   };
 }
 
 export async function POST(request: Request) {
-  let input: ReturnType<typeof summaryRequestSchema.parse>;
+  let parsed: ReturnType<typeof summaryRequestSchema.parse>;
   try {
-    input = summaryRequestSchema.parse(await request.json());
+    parsed = summaryRequestSchema.parse(await request.json());
   } catch {
     return NextResponse.json({ error: "请求参数不完整" }, { status: 400 });
   }
 
   const topics = await loadTopics();
-  const currentTopic = topics[input.topicId];
-  if (!currentTopic) {
-    return NextResponse.json({ error: `话题 ${input.topicId} 不存在` }, { status: 404 });
-  }
+  const currentTopic = topics[parsed.topicId];
+  if (!currentTopic) return NextResponse.json({ error: `话题 ${parsed.topicId} 不存在` }, { status: 404 });
 
-  // 结论性字段仍从真实语料取（保持既有契约不破）
-  // ⚠️ 对抗性测试 D3 修复：这些 legacy 字段以前是**无条件**取语料原文前 200 字。
-  //    问题：语料跟"这桌实际讨论了什么"毫无关系，用户随便伪造一个 collisionPoint
-  //    就能让结果卡里出现一段跟本桌无关的名人名言（甚至被误当成席位结论）。
-  //    现在：只有在**本桌真的发生过对应环节**时才取语料，否则给诚实的空态文案。
-  const seats: SeatId[] = ["conditional", "realist", "action", "realist"];
-  const seats4Label = ["共识", "分歧", "隐藏前提", "还没解决"];
-  const hasCollision = Boolean(input.collisionPoint && input.challenge && input.response);
-  const hasDivergence = Boolean(input.confirmedDivergence);
-  // 每个结论槽位是否"有资格"取语料 —— 没发生过就留空
-  const isGrounded = [true, hasCollision, hasDivergence, true];
-  const results = await Promise.all(
-    seats.map((seat, i) =>
-      retrieveFromTopics(null, { topicId: input.topicId, seat }, 1).then((top) => ({
-        label: seats4Label[i],
-        seat,
-        top,
-      })),
-    ),
-  );
-  const pick = (i: number) => {
-    if (!isGrounded[i]) return "";
-    const r = results[i];
-    if (r.top.length === 0) {
-      const fb = results.find((x) => x.top.length > 0);
-      if (!fb) return "";
-      return `（来自 ${fb.seat} 席位的回答）${fb.top[0].contentText.slice(0, 200)}`;
-    }
-    // 带明确的"这是参考资料"标记，避免被下游当成席位结论复述
-    return `【参考资料 · 非本桌结论】${r.top[0].contentText.slice(0, 200)}`;
+  // guard：进 prompt 之前先洗掉控制字符与注入载荷
+  const input: typeof parsed = {
+    ...parsed,
+    collisionPoint: parsed.collisionPoint ? sanitizeText(parsed.collisionPoint) : undefined,
+    challenge: parsed.challenge ? sanitizeText(parsed.challenge) : undefined,
+    response: parsed.response ? sanitizeText(parsed.response) : undefined,
+    confirmedDivergence: parsed.confirmedDivergence ? sanitizeText(parsed.confirmedDivergence) : undefined,
+    exitUnderstanding: parsed.exitUnderstanding ? sanitizeText(parsed.exitUnderstanding) : undefined,
+    firstSeatStatement: parsed.firstSeatStatement ? sanitizeText(parsed.firstSeatStatement) : undefined,
+    secondSeatStatement: parsed.secondSeatStatement ? sanitizeText(parsed.secondSeatStatement) : undefined,
   };
 
-  // 未发生对应环节时的诚实空态（不编造、不借语料凑数）
-  const notHappened = (what: string) => `本桌尚未${what}，这一项暂无可归纳的内容。`;
-  const base = getSummaryFallback(input.firstChoice, input.secondChoice, input.positionChange);
-  const baseFields = {
-    consensus: pick(0) || base.consensus,
-    disagreement: pick(1) || (hasCollision ? base.disagreement : notHappened("发生碰撞质疑")),
-    hiddenAssumption: pick(2) || (hasDivergence ? base.hiddenAssumption : notHappened("确认隐藏分歧")),
-    openQuestion: pick(3) || base.openQuestion,
-    trajectory: base.trajectory,
-    sourceIds: results.flatMap((r) => r.top.map((t) => t.contentId)),
-    sourceUrls: results.flatMap((r) => r.top.map((t) => t.url)),
-    authors: results.flatMap((r) => r.top.map((t) => t.author)),
-  };
-
-  // ── 旧版流程保持原契约：直接返回四字段结果 ──
-  // 采用 hock1024always 的 flow 分支，但收紧了判定：只有**显式传了别的 flow**
-  // 才走旧契约。`flow` 在 validator 里是 optional，若用 `!== "knowledge-table-v2"`
-  // 判定，那么所有没传 flow 的老调用方（含 tests/rag-quality.mjs）都会被静默
-  // 降级成 retrieval，模型路径根本跑不到 —— 那是隐性回归。
-  if (input.flow !== undefined && input.flow !== "knowledge-table-v2") {
-    return NextResponse.json({
-      consensus: baseFields.consensus,
-      disagreement: baseFields.disagreement,
-      hiddenAssumption: baseFields.hiddenAssumption,
-      openQuestion: baseFields.openQuestion,
-      trajectory: baseFields.trajectory,
-      sourceIds: baseFields.sourceIds,
-      sourceUrls: baseFields.sourceUrls,
-      authors: baseFields.authors,
-      mode: sessionMode("retrieval"),
-    });
-  }
-
-  // 组装本桌上下文（让模型不用靠猜）
-  // ⚠️ D3 修复：传入的 challenge/response 是**请求体里直接给的字符串**，
-  //    可能被伪造。只有拿它跟「语料/本桌已生成内容」无法区分时，才需要防伪标记 ——
-  //    这个防伪标记在 renderSessionContext 里统一加（见 session.ts）。
-  const sessionId = deriveSessionId({
-    sessionId: (input as { sessionId?: string }).sessionId,
-    sessionSignature: (input as { sessionSignature?: string }).sessionSignature,
-    topicId: input.topicId,
-  });
-  upsertSession(sessionId, {
-    topicId: input.topicId,
-    topicTitle: currentTopic.title,
-    userAddedConditions: sanitizeConditions(
-      (input as { userAddedConditions?: string[] }).userAddedConditions ?? [],
-    ),
-    tendency: input.tendency,
-    confirmedDivergence: input.confirmedDivergence
-      ? sanitizeText(input.confirmedDivergence)
-      : undefined,
-    thirdSeatInvited: Boolean(input.perspectiveName),
-    collision:
-      input.collisionPoint && input.challenge && input.response
-        ? {
-            collisionPoint: sanitizeText(input.collisionPoint),
-            selectedSeatId: (input.respondedSeatIds[0] as SeatId) ?? "action",
-            challenge: {
-              seatId: input.respondedSeatIds[0] === "realist" ? "action" : "realist",
-              reply: sanitizeText(input.challenge),
-            },
-            response: {
-              seatId: (input.respondedSeatIds[0] as SeatId) ?? "action",
-              reply: sanitizeText(input.response),
-            },
-          }
-        : undefined,
-  });
-  const session = getSession(sessionId)!;
-
-  const trajectory = buildTrajectory(input);
-  const prompt = summaryPrompt({
-    sessionContext: renderSessionContext(session, seatNames),
-    trajectory,
-  });
-
-  const generated = await callLLMJson({
-    ...prompt,
-    parse: (raw) => mapOutputSchema.parse(raw),
-    temperature: 0.85,
-    // 非思考模式：结果卡是结构化输出（问题+3标签+金句），无需思维链
-    thinking: "disabled",
-    maxTokens: 1000,
-    label: "summary",
-  });
-
-  const card = generated ?? fallbackCard(input, currentTopic.title);
-  const mode = generated ? sessionMode("generated") : sessionMode("fallback");
-
-  // 第三席未正式入桌时，第三个外围发现不能标成 perspective
-  const ripples = card.ripples.map((r) =>
-    !input.perspectiveName && r.type === "perspective" ? { ...r, type: "open" as const } : r,
-  );
-
-  return NextResponse.json({
-    ...baseFields,
-    // PRD 7.3 / 12.5 要求的最终产物
-    discussionMap: {
-      question: card.question,
-      ripples,
-      trajectory: {
-        start: trajectory.start,
-        checkpoints: input.collisionPoint ? ["collision"] : [],
-        end: trajectory.end,
+  const meta = makeRequestMeta(input, input.topicId);
+  const firstChoice = (input.firstChoice ??
+    (input.tendency === "closer_first"
+      ? "support_quit"
+      : input.tendency === "closer_second"
+        ? "oppose_quit"
+        : "depends")) as FirstChoice;
+  const secondChoice = (input.secondChoice ?? "set_deadline") as SecondChoice;
+  const positionChange = (input.positionChange ?? "slightly_changed") as PositionChange;
+  const thirdSeatInvited = hasInvitedThirdSeat(input);
+  const fallback = getSummaryFallback(firstChoice, secondChoice, positionChange);
+  const base: SummaryResult = {
+    ...fallback,
+    ...meta,
+    discussionMap: buildDiscussionMap(
+      {
+        tendency: input.tendency,
+        secondChoice,
+        thirdSeatInvited,
+        perspectiveName: thirdSeatInvited ? input.perspectiveName : undefined,
       },
-    },
-    soulSentence: card.soulSentence,
-    ...issueSessionToken(sessionId),
-    thoughtTrail: buildThoughtTrail(input, currentTopic.title),
-    perspective: input.perspectiveName
-      ? {
-          name: input.perspectiveName,
-          basis: `来自两席互质后确认的隐藏分歧：${input.confirmedDivergence ?? "尚未确认"}`,
-          reframe: input.perspectiveReframe ?? "把问题改写成对损失、边界和下一次检查点的判断。",
-          tool: "列出不可逆损失、仍可保留的选项与下一次复查的触发线。",
-          reply: "先不急着裁决谁对谁错，把选择拆成现在必须保护什么、还能保留什么、何时重新判断。",
-          sourceIds: [],
-          sourceUrls: [],
-          authors: [],
-          mode: mode,
-        }
-      : undefined,
-    mode,
-  });
+      currentTopic.title,
+    ),
+    soulSentence: buildSoulSentence({
+      secondChoice,
+      confirmedDivergence: input.confirmedDivergence,
+      exitUnderstanding: input.exitUnderstanding,
+      thirdSeatInvited,
+    }),
+    sources: [],
+    mode: "fallback",
+  };
+  if (input.flow === "knowledge-table-v2") base.thoughtTrail = buildThoughtTrail(input, currentTopic.title);
+
+  let queryVec: number[] | null = null;
+  try {
+    queryVec = await embedQuery(`${currentTopic.title} ${firstChoice} ${secondChoice} ${input.confirmedDivergence ?? ""}`);
+  } catch {
+    queryVec = null;
+  }
+  // 只暴露真正参与本桌的席位的证据。
+  const seats: SeatId[] = thirdSeatInvited ? ["conditional", "realist", "action"] : ["realist", "action"];
+  const results = await Promise.all(
+    seats.map(async (seat) => ({
+      seat,
+      top: await retrieveFromTopics(queryVec, { topicId: input.topicId, seat }, 1, {
+        query: `${currentTopic.title} ${input.collisionPoint ?? ""}`,
+      }),
+    })),
+  );
+  const sources = normalizeSources(results);
+  if (sources.length === 0) return NextResponse.json(base);
+
+  const retrievalBase: SummaryResult = {
+    ...base,
+    sourceIds: sources.map((source) => source.id),
+    sourceUrls: sources.map((source) => source.url ?? ""),
+    authors: sources.map((source) => source.author ?? ""),
+    sources,
+    mode: "retrieval",
+  };
+
+  const generated = await generateWithModel(input, currentTopic.title, retrievalBase);
+  // 配置了 API 但生成失败时，保留检索证据并显式降级为 fallback，
+  // 避免把"只检索、未生成"伪装成最终答案。
+  return NextResponse.json(generated ?? { ...retrievalBase, mode: "fallback" });
 }

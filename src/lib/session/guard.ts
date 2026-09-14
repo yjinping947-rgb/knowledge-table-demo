@@ -82,8 +82,19 @@ export function detectInjection(raw: string): InjectionVerdict {
 
 /** 进程级随机会话盐。重启即变 —— 旧 token 自然失效。 */
 const SESSION_SECRET = randomBytes(32);
-/** sessionId 白名单：只接受我们自己签发的形态 */
+/** 服务端签发的房间号形态 */
 const SESSION_ID_RE = /^s_[0-9a-f]{24}$/;
+/**
+ * 客户端自带会话号的合法形态：字母/数字/下划线/连字符，长度 8..120。
+ *
+ * 为什么放宽到"接受客户端 id"：前端契约要求响应把 sessionId 原样回显，
+ * 否则客户端会判定请求/响应错配并整段降级（见 index.tsx 的 responseMatchesRequest）。
+ * 而安全性并不因此下降 —— 客户端用 `sess_${randomUUID()}` 生成，
+ * 猜中别人会话号的概率可忽略。真正要拦的是旧实现的**确定性**房间号
+ * `anon_{topicId}_{seatId}`（对抗测试 D1 的枚举入口）。
+ */
+const SESSION_ID_SHAPE = /^[A-Za-z0-9_-]{8,120}$/;
+const LEGACY_DETERMINISTIC_RE = /^anon_/;
 
 export function newSessionId(): string {
   return `s_${randomBytes(12).toString("hex")}`;
@@ -111,8 +122,8 @@ export function verifySessionId(sessionId: string, sig?: string): boolean {
  * 任何人复用同一 seatId 就能读到别人填的隐私条件。
  *
  * 新策略：
- *   - 客户端带了合法 id → 复用（但要能被签名验证）
- *   - 客户端带了非法 id → 直接丢弃，派新房间（防止枚举/路径注入）
+ *   - 客户端带了合法形态的 id → 原样复用（前端要求回显，见下方说明）
+ *   - 客户端带的是旧式 `anon_*` 或含特殊字符 → 丢弃，派新房间（防枚举/注入）
  *   - 没带 → 每次派新房间（高熵随机，不可猜）
  */
 export function resolveSessionId(input: { provided?: string; signature?: string }): {
@@ -123,11 +134,13 @@ export function resolveSessionId(input: { provided?: string; signature?: string 
   if (!provided) {
     return { sessionId: newSessionId(), rejected: false };
   }
-  if (!SESSION_ID_RE.test(provided)) {
-    // 形态不合法（含旧 anon_ 前缀 / 路径字符 / 超长）→ 拒绝，换新房间
+  if (!SESSION_ID_SHAPE.test(provided) || LEGACY_DETERMINISTIC_RE.test(provided)) {
+    // 形态不合法（旧 anon_ 前缀 / 路径字符 / 超长 / 控制字符）→ 拒绝，换新房间
     return { sessionId: newSessionId(), rejected: true };
   }
-  if (!verifySessionId(provided, input.signature)) {
+  // 服务端签发的房间号（s_*）若带回签名，必须验签；
+  // 客户端自带的 id（sess_* 等）没有签名，直接接受。
+  if (SESSION_ID_RE.test(provided) && input.signature && !verifySessionId(provided, input.signature)) {
     return { sessionId: newSessionId(), rejected: true };
   }
   return { sessionId: provided, rejected: false };
