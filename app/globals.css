@@ -34,11 +34,13 @@
 @media(max-width:760px){.collision-choices{grid-template-columns:1fr}.secondary-actions{align-items:center;flex-direction:column;gap:11px}}
 @media(max-width:760px){.thought-trail-list{grid-template-columns:1fr}}
 .key-setup{border:1.5px solid;background:#fff;margin:0 0 22px}
-.key-setup[data-configured="false"]{border-width:2px;box-shadow:3px 3px 0 var(--ink);background:#fff5cf}
+.key-setup[data-configured="false"][data-pending="false"]{border-width:2px;box-shadow:3px 3px 0 var(--ink);background:#fff5cf}
 .key-setup-head{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:13px 16px;cursor:pointer;text-align:left}
 .key-setup-head b{font-size:13px;font-weight:900}
 .key-setup-dot{width:9px;height:9px;border-radius:50%;background:var(--red);flex:0 0 auto}
 .key-setup-dot[data-on="true"]{background:var(--green)}
+/* 状态未知时用中性灰，避免首屏闪出"未配置"的红色告警 */
+.key-setup-dot[data-pending="true"]{background:#b4b2a9}
 .key-setup-meta{color:var(--gray);font-size:11px;font-weight:700;margin-left:auto}
 .key-setup-chevron{font-size:11px;font-weight:800;border-bottom:1px solid;padding-bottom:1px}
 .key-setup-body{border-top:1.5px dashed #999;padding:15px 16px 17px}

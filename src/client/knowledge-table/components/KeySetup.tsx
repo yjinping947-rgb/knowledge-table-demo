@@ -119,17 +119,30 @@ export function KeySetup() {
     }
   };
 
-  const configured = Boolean(status?.configured);
+  // status 为 null 表示"还没问到"（SSR 阶段与 hydration 前）。
+  // 这时不能按"未配置"渲染 —— 否则已配好 key 的机器上会先闪一下
+  // "还差一步：填入你的 API Key"，看起来像出错了。
+  const pending = status === null;
+  const configured = status?.configured === true;
   const canSubmit = apiKey.trim().length > 0 && !busy;
 
+  const headLabel = pending
+    ? "AI 连接设置"
+    : configured
+      ? "AI 已接通"
+      : "还差一步：填入你的 API Key";
+  const headMeta = pending
+    ? "检查中…"
+    : configured
+      ? `${SOURCE_LABEL[status!.source]} · ${status!.maskedKey}`
+      : "点此展开";
+
   return (
-    <section className="key-setup" data-configured={configured}>
+    <section className="key-setup" data-configured={configured} data-pending={pending}>
       <button className="key-setup-head" type="button" onClick={() => setOpen((value) => !value)}>
-        <span className="key-setup-dot" data-on={configured} />
-        <b>{configured ? "AI 已接通" : "还差一步：填入你的 API Key"}</b>
-        <span className="key-setup-meta">
-          {configured ? `${SOURCE_LABEL[status!.source]} · ${status!.maskedKey}` : "点此展开"}
-        </span>
+        <span className="key-setup-dot" data-on={configured} data-pending={pending} />
+        <b>{headLabel}</b>
+        <span className="key-setup-meta">{headMeta}</span>
         <span className="key-setup-chevron">{open ? "收起" : "展开"}</span>
       </button>
 
