@@ -12,8 +12,10 @@ export function getAIClient(): OpenAI | null {
   return new OpenAI({
     apiKey: process.env.AI_API_KEY,
     baseURL: process.env.AI_BASE_URL,
-    timeout: 30_000,
-    maxRetries: 1,
+    // 互动席位不应因一次慢请求把整桌卡住；失败后由当前阶段的
+    // 本地语料/固定兜底继续完成流程。
+    timeout: 12_000,
+    maxRetries: 0,
   });
 }
 

@@ -4,6 +4,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import type { Season } from "@/data";
 import type { TopicSummary } from "@/lib/rag";
 import styles from "./seasons.module.css";
@@ -15,6 +16,7 @@ export function SeasonsShell({
   seasons: Season[];
   topics: TopicSummary[];
 }) {
+  const [customQuestion, setCustomQuestion] = useState("");
   const topicMap = new Map(topics.map((item) => [item.id, item]));
   const assigned = new Set(seasons.flatMap((season) => season.topicIds));
   const extras = topics.filter((item) => !assigned.has(item.id));
@@ -103,6 +105,22 @@ export function SeasonsShell({
             );
           })}
         </div>
+
+        <section className={styles.seasonsExtras}>
+          <div className={styles.seasonsExtrasHead}>
+            <p className={styles.seasonsEyebrow}>特别篇</p>
+            <h2>想聊点别的？</h2>
+            <p className={styles.seasonsCustomHint}>20 个现成话题之外，也可以把你此刻真正想问的问题带上桌。</p>
+          </div>
+          <form className={styles.seasonsCustomForm} onSubmit={(event) => {
+            event.preventDefault();
+            const question = customQuestion.trim();
+            if (question.length >= 4) window.location.href = `/?topic=CUSTOM&q=${encodeURIComponent(question)}`;
+          }}>
+            <input value={customQuestion} onChange={(event) => setCustomQuestion(event.target.value)} placeholder="输入你想和三种观点一起讨论的问题" aria-label="输入自定义问题" maxLength={120} />
+            <button type="submit" disabled={customQuestion.trim().length < 4}>带问题上桌 <span>→</span></button>
+          </form>
+        </section>
 
         {extras.length > 0 && (
           <section className={styles.seasonsExtras}>

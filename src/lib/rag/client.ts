@@ -16,18 +16,23 @@ function getClient(): OpenAI | null {
     cachedClient = null;
     return null;
   }
-  cachedClient = new OpenAI({ apiKey, baseURL, timeout: 30_000, maxRetries: 1 });
+  cachedClient = new OpenAI({ apiKey, baseURL, timeout: 8_000, maxRetries: 0 });
   return cachedClient;
 }
 
 export async function embedQuery(text: string): Promise<number[] | null> {
   const client = getClient();
   if (!client) return null;
-  const r = await client.embeddings.create({
-    model: EMBED_MODEL,
-    input: text.slice(0, 8000),
-  });
-  return r.data[0]?.embedding ?? null;
+  try {
+    const r = await client.embeddings.create({
+      model: process.env.AI_EMBEDDING_MODEL || EMBED_MODEL,
+      input: text.slice(0, 8000),
+    });
+    return r.data[0]?.embedding ?? null;
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") console.error("Embedding fallback:", error);
+    return null;
+  }
 }
 
 export { EMBED_MODEL, EMBED_DIM };

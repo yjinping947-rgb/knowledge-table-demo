@@ -10,11 +10,14 @@ import { SeasonsShell } from "../src/client/seasons/SeasonsShell";
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ topic?: string }>;
+  searchParams: Promise<{ topic?: string; q?: string }>;
 }) {
-  const { topic: topicId } = await searchParams;
+  const { topic: topicId, q: customQuestion } = await searchParams;
   const [seasons, topics] = await Promise.all([listSeasons(), listTopics()]);
 
+  if (topicId === "CUSTOM" && customQuestion) {
+    return <KnowledgeTable topicId="CUSTOM" topicTitle={customQuestion} />;
+  }
   if (topicId) {
     const selectedTopic = topics.find((item) => item.id === topicId);
     if (selectedTopic) {

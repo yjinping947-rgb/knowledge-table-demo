@@ -8,6 +8,7 @@ import type {
   DivergenceCandidate,
   FirstChoice,
   FollowupResult,
+  FollowupTurn,
   PerspectiveResult,
   PositionChange,
   SecondChoice,
@@ -38,12 +39,16 @@ export type KnowledgeTableState = {
   tendency: TendencyChoice | null;
   collisionPoint: CollisionPoint | null;
   collision: CollisionResult | null;
+  collisionRevealedSeats: SeatId[];
   divergences: DivergenceCandidate[];
   confirmedDivergence: string | null;
   perspective: PerspectiveResult | null;
   thirdSeatInvited: boolean;
   followupSeatId: SeatId | null;
   followup: FollowupResult | null;
+  followupHistory: Partial<Record<SeatId, FollowupTurn[]>>;
+  likedQuotes: string[];
+  revealedSeats: SeatId[];
   responses: ResponseWithRound[];
   summary: SummaryResult | null;
   loading: boolean;
@@ -57,12 +62,16 @@ export const initialState: KnowledgeTableState = {
   tendency: null,
   collisionPoint: null,
   collision: null,
+  collisionRevealedSeats: [],
   divergences: [],
   confirmedDivergence: null,
   perspective: null,
   thirdSeatInvited: false,
   followupSeatId: null,
   followup: null,
+  followupHistory: {},
+  likedQuotes: [],
+  revealedSeats: [],
   responses: [],
   summary: null,
   loading: false,
@@ -76,11 +85,15 @@ export type KnowledgeTableAction =
   | { type: "SET_TENDENCY"; choice: TendencyChoice | null }
   | { type: "SET_COLLISION_POINT"; point: CollisionPoint | null }
   | { type: "SET_COLLISION"; collision: CollisionResult | null }
+  | { type: "REVEAL_COLLISION_SEAT"; seatId: SeatId }
   | { type: "SET_DIVERGENCES"; divergences: DivergenceCandidate[] }
   | { type: "SET_CONFIRMED_DIVERGENCE"; value: string | null }
   | { type: "SET_PERSPECTIVE"; perspective: PerspectiveResult | null }
   | { type: "SET_THIRD_SEAT"; invited: boolean }
   | { type: "SET_FOLLOWUP"; seatId: SeatId | null; result?: FollowupResult | null }
+  | { type: "ADD_FOLLOWUP"; seatId: SeatId; question: string; result: FollowupResult }
+  | { type: "TOGGLE_LIKE"; quote: string }
+  | { type: "REVEAL_SEAT"; seatId: SeatId }
   | { type: "ADD_RESPONSE"; response: ResponseWithRound }
   | { type: "SET_SUMMARY"; summary: SummaryResult | null }
   | { type: "SET_LOADING"; loading: boolean }
@@ -101,7 +114,9 @@ export function reducer(state: KnowledgeTableState, action: KnowledgeTableAction
     case "SET_COLLISION_POINT":
       return { ...state, collisionPoint: action.point };
     case "SET_COLLISION":
-      return { ...state, collision: action.collision };
+      return { ...state, collision: action.collision, collisionRevealedSeats: action.collision ? state.collisionRevealedSeats : [] };
+    case "REVEAL_COLLISION_SEAT":
+      return state.collisionRevealedSeats.includes(action.seatId) ? state : { ...state, collisionRevealedSeats: [...state.collisionRevealedSeats, action.seatId] };
     case "SET_DIVERGENCES":
       return { ...state, divergences: action.divergences };
     case "SET_CONFIRMED_DIVERGENCE":
@@ -112,6 +127,19 @@ export function reducer(state: KnowledgeTableState, action: KnowledgeTableAction
       return { ...state, thirdSeatInvited: action.invited };
     case "SET_FOLLOWUP":
       return { ...state, followupSeatId: action.seatId, followup: action.result ?? null };
+    case "ADD_FOLLOWUP":
+      return {
+        ...state,
+        followup: action.result,
+        followupHistory: {
+          ...state.followupHistory,
+          [action.seatId]: [...(state.followupHistory[action.seatId] ?? []), { question: action.question, result: action.result }],
+        },
+      };
+    case "TOGGLE_LIKE":
+      return { ...state, likedQuotes: state.likedQuotes.includes(action.quote) ? state.likedQuotes.filter((quote) => quote !== action.quote) : [...state.likedQuotes, action.quote] };
+    case "REVEAL_SEAT":
+      return state.revealedSeats.includes(action.seatId) ? state : { ...state, revealedSeats: [...state.revealedSeats, action.seatId] };
     case "ADD_RESPONSE":
       return { ...state, responses: [...state.responses, action.response] };
     case "SET_SUMMARY":

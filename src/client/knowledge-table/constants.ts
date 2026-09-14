@@ -5,11 +5,11 @@ import { seats } from "@/data";
 import type { CollisionPoint, FirstChoice, PositionChange, SecondChoice, TendencyChoice } from "@/lib/types";
 
 export const tendencyOptions: { id: TendencyChoice; label: string; short: string }[] = [
-  { id: "closer_first", label: "我更接近第一席的判断", short: "更接近第一席" },
-  { id: "closer_second", label: "我更接近第二席的判断", short: "更接近第二席" },
-  { id: "both_valid", label: "两边都有道理", short: "两边都有道理" },
-  { id: "undecided", label: "暂时无法判断", short: "暂时无法判断" },
-  { id: "missed_point", label: "两边都没说到重点", short: "没说到重点" },
+  { id: "closer_first", label: "我更在意先解决眼前的问题", short: "先解决问题" },
+  { id: "closer_second", label: "我更在意先把风险和成本算清楚", short: "先看风险" },
+  { id: "both_valid", label: "两边都有道理，要看具体情况", short: "看具体条件" },
+  { id: "undecided", label: "我还没想清楚", short: "还没想清楚" },
+  { id: "missed_point", label: "两边都没说到我的重点", short: "没说到重点" },
 ];
 
 export const firstOptions: { id: FirstChoice; label: string; short: string }[] = [
@@ -50,14 +50,19 @@ export function secondOptionsForTopic(topicId: string) {
   return topicId === "T01" ? secondOptions : generalSecondOptions;
 }
 
-export function collisionPointsForTopic(): CollisionPoint[] {
-  return seats
-    .filter((seat) => seat.id === "action" || seat.id === "realist")
-    .flatMap((seat) =>
-      seat.arguments.map((text, index) => ({
-        id: `${seat.id}-${index + 1}`,
-        seatId: seat.id,
-        text,
-      })),
-    );
+export function collisionPointsForTopic(topicId = "T01", topicTitle = "这个问题", tendency?: TendencyChoice | null): CollisionPoint[] {
+  if (topicId === "T01") {
+    return seats
+      .filter((seat) => seat.id === "action" || seat.id === "realist")
+      .flatMap((seat) => seat.arguments.map((text, index) => ({ id: `${seat.id}-${index + 1}`, seatId: seat.id, text })));
+  }
+  const points = [
+    { id: "action-1", seatId: "action" as const, text: `面对「${topicTitle}」，先做一个小改变，会不会比继续观望更快看清结果？` },
+    { id: "realist-1", seatId: "realist" as const, text: `如果现在就改变「${topicTitle}」，时间、精力和钱的代价由谁来承担？` },
+    { id: "action-2", seatId: "action" as const, text: `关于「${topicTitle}」，什么迹象出现时就不能再拖了？` },
+    { id: "realist-2", seatId: "realist" as const, text: `关于「${topicTitle}」，先保住什么底线，才能让后面的选择不被迫进行？` },
+  ];
+  if (tendency === "closer_second") return [points[1], points[3], points[0], points[2]];
+  if (tendency === "missed_point") return [points[2], points[3], points[0], points[1]];
+  return points;
 }

@@ -1,19 +1,45 @@
-import { AI_MODEL, getAIClient, hasAIConfig } from "@/lib/ai/client";
 import { embedQuery, retrieveFromTopics } from "@/lib/rag";
 import type { Mode, SeatId } from "@/lib/types";
+import { AI_MODEL, getAIClient } from "@/lib/ai";
+import { filterRealtimeSourcesForTopic, searchZhihuRealtime, type RealtimeZhihuSource } from "@/lib/zhihu/realtime";
 
 export type SessionSource = Awaited<ReturnType<typeof retrieveFromTopics>>[number];
 
-export async function retrieveSessionSources(topicId: string, seat: SeatId, query: string, count = 3) {
-  try {
-    const queryVec = await embedQuery(query);
-    const sources = await retrieveFromTopics(queryVec, { topicId, seat }, count);
-    return sources.filter((source) => source.seat === seat);
-  } catch (error) {
-    if (process.env.NODE_ENV === "development") console.error("session embedding fallback:", error);
-    const sources = await retrieveFromTopics(null, { topicId, seat }, count);
-    return sources.filter((source) => source.seat === seat);
+export type SessionSourceStatus = "zhihu-realtime" | "hybrid" | "local-fallback" | "no-result";
+
+export async function retrieveSessionSourcesDetailed(topicId: string, seat: SeatId, query: string, count = 3, customQuestion?: string) {
+  const realtime = await searchZhihuRealtime(query, count);
+  if (realtime.status === "ok") {
+    const relevant = filterRealtimeSourcesForTopic(topicId, realtime.sources, customQuestion)
+      .slice(0, count) as Array<SessionSource & RealtimeZhihuSource>;
+    if (relevant.length >= count) {
+      return { sources: relevant, status: "zhihu-realtime" as const };
+    }
+
+    // 实时结果不足时只从当前 topicId + seat 补齐，不让全站搜索的偏题结果占位。
+    const queryVec = await embedQuery(query).catch(() => null);
+    const local = await retrieveFromTopics(queryVec, { topicId, seat }, count, { queryText: query });
+    const seen = new Set(relevant.map((source) => source.contentId));
+    const merged = [
+      ...relevant,
+      ...local.filter((source) => !seen.has(source.contentId)),
+    ].slice(0, count);
+    if (relevant.length > 0) return { sources: merged, status: "hybrid" as const };
+    return { sources: merged, status: merged.length ? "local-fallback" as const : "no-result" as const };
   }
+  let queryVec: number[] | null = null;
+  try {
+    queryVec = await embedQuery(query);
+  } catch {
+    // Embedding provider failures must not prevent the local keyword fallback.
+    queryVec = null;
+  }
+  const local = await retrieveFromTopics(queryVec, { topicId, seat }, count, { queryText: query });
+  return { sources: local, status: local.length ? "local-fallback" as const : "no-result" as const };
+}
+
+export async function retrieveSessionSources(topicId: string, seat: SeatId, query: string, count = 3, customQuestion?: string) {
+  return (await retrieveSessionSourcesDetailed(topicId, seat, query, count, customQuestion)).sources;
 }
 
 export function sourceExcerpt(source: SessionSource | undefined, fallback: string, max = 210) {
@@ -21,88 +47,50 @@ export function sourceExcerpt(source: SessionSource | undefined, fallback: strin
   return source.contentText.replace(/\s+/g, " ").trim().slice(0, max);
 }
 
-export function sourceFields(sources: SessionSource[]) {
+/**
+ * 本地降级时按当前问题挑选完整句子，避免每次追问都返回同一段原文开头。
+ * 这不是 LLM 摘要，只是可解释的句子级抽取；没有命中时才使用普通摘录。
+ */
+export function sourceExcerptRelevant(
+  source: SessionSource | undefined,
+  query: string,
+  fallback: string,
+  max = 210,
+) {
+  if (!source) return fallback;
+  const text = source.contentText.replace(/\s+/g, " ").trim();
+  const terms = Array.from(new Set(query.match(/[\u4e00-\u9fff]{2,}|[a-zA-Z0-9]{2,}/g) ?? []))
+    .filter((term) => term.length >= 2)
+    .slice(0, 30);
+  const sentences = text.split(/(?<=[。！？!?；;])\s*/).filter(Boolean);
+  const ranked = sentences
+    .map((sentence, index) => ({
+      sentence,
+      index,
+      score: terms.reduce((sum, term) => sum + (sentence.toLowerCase().includes(term.toLowerCase()) ? 1 : 0), 0),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+  const best = ranked.find((item) => item.score > 0)?.sentence;
+  // 没有任何问题词命中时，不展示看似相关但实际无关的原文；交给席位
+  // fallback 句回答，避免把第一次问题的内容伪装成当前问题的答案。
+  if (!best) return fallback;
+  return best.length <= max ? best : `${best.slice(0, max - 1)}。`;
+}
+
+export function sourceFields(sources: SessionSource[], status: SessionSourceStatus = "local-fallback") {
   return {
     sourceIds: sources.map((source) => source.contentId),
     sourceUrls: sources.map((source) => source.url),
     authors: sources.map((source) => source.author),
-    sourceSeats: sources.map((source) => source.seat),
+    sourceStatus: status,
   };
 }
 
-export function sessionMode(): Mode {
-  return hasAIConfig() ? "generated" : "fallback";
+export function sessionMode(status: SessionSourceStatus = "local-fallback"): Mode {
+  return status === "zhihu-realtime" || status === "hybrid" ? "ai" : "fallback";
 }
 
-const seatPrompts: Record<"action" | "realist" | "conditional", string> = {
-  action: `你是知识拼桌的第一席「行动派」。
-关注身心健康、不可逆损失、家庭照护和重新获得选择能力。行动不等于冲动裸辞，要说明最低现金流和可执行边界。`,
-  realist: `你是知识拼桌的第二席「现实派」。
-关注现金流、医疗或照护支出、家庭责任、替代方案和风险边界。不要把谨慎说成无限期硬撑，要给出期限或触发线。`,
-  conditional: `你是知识拼桌的第三席「条件派」。
-关注触发条件、期限、安全线和可检查的中间方案，帮助用户把二选一改写成可观察的判断。`,
-};
-
-function sourceContext(sources: SessionSource[]) {
-  return sources
-    .map(
-      (source, index) =>
-        `[${index + 1}] ${source.title} · ${source.author}\n${source.contentText.replace(/\s+/g, " ").trim().slice(0, 900)}`,
-    )
-    .join("\n\n");
-}
-
-export async function generateSeatReply({
-  topicTitle,
-  seat,
-  question,
-  sources,
-  fallback,
-}: {
-  topicTitle: string;
-  seat: "action" | "realist" | "conditional";
-  question: string;
-  sources: SessionSource[];
-  fallback: string;
-}): Promise<{ reply: string; mode: Mode }> {
-  const client = getAIClient();
-  if (!client) return { reply: fallback, mode: "fallback" };
-
-  try {
-    const completion = await client.chat.completions.create({
-      model: AI_MODEL,
-      temperature: 0.35,
-      messages: [
-        {
-          role: "system",
-          content: `${seatPrompts[seat]}
-
-回答规则：
-- 直接回答用户这一次具体问题，不要只摘录或复述来源。
-- 必须明确回应用户新提供的条件；如果来源没有覆盖，诚实说明并基于席位原则谨慎推断。
-- 不替用户做绝对决定，不编造个人经历、数字或医疗结论。
-- 使用简洁自然的中文，控制在 80-180 字。
-- 参考来源只用于支撑判断，不要输出来源编号。`,
-        },
-        {
-          role: "user",
-          content: `当前话题：${topicTitle}
-用户追问：${question}
-
-参考来源：
-${sourceContext(sources) || "当前席位没有检索到足够的相关来源，请依据席位原则回答，并说明这一点。"}`,
-        },
-      ],
-    });
-    const reply = completion.choices[0]?.message?.content?.trim();
-    if (!reply) throw new Error("empty session model reply");
-    return { reply, mode: "generated" };
-  } catch (error) {
-    if (process.env.NODE_ENV === "development") console.error("session generation fallback:", error);
-    return { reply: fallback, mode: "fallback" };
-  }
-}
-
+/** Run a small JSON-only model call for derived stages (divergence/perspective). */
 export async function generateStructured<T>({
   system,
   user,
@@ -114,7 +102,6 @@ export async function generateStructured<T>({
 }): Promise<{ value: T; mode: Mode }> {
   const client = getAIClient();
   if (!client) return { value: fallback, mode: "fallback" };
-
   try {
     const completion = await client.chat.completions.create({
       model: AI_MODEL,
@@ -123,11 +110,12 @@ export async function generateStructured<T>({
         { role: "system", content: `${system}\n只输出合法 JSON，不要 Markdown 代码块。` },
         { role: "user", content: user },
       ],
+      max_tokens: 900,
     });
     const content = completion.choices[0]?.message?.content?.trim();
     if (!content) throw new Error("empty structured session response");
     const value = JSON.parse(content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "")) as T;
-    return { value, mode: "generated" };
+    return { value, mode: "ai" };
   } catch (error) {
     if (process.env.NODE_ENV === "development") console.error("structured session generation fallback:", error);
     return { value: fallback, mode: "fallback" };

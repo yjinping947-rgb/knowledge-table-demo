@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadTopics } from "@/lib/rag/topics";
+import { loadTopics, topicForRequest } from "@/lib/rag/topics";
 import { generateStructured } from "@/lib/session/rag";
 import { divergenceRequestSchema } from "@/lib/validators";
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "互质信息不完整" }, { status: 400 });
 
   const input = parsed.data;
-  const topic = (await loadTopics())[input.topicId];
+  const topic = topicForRequest(await loadTopics(), input.topicId, input.customQuestion);
   if (!topic) return NextResponse.json({ error: `话题 ${input.topicId} 不存在` }, { status: 404 });
 
   const fallback = fallbackCandidates(input.collisionPoint, topic.title);
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
 碰撞点：${input.collisionPoint}
 质疑：${input.challenge}
 回应：${input.response}
+用户补充和前置追问：${input.userContext || "无"}
 
 返回 JSON 数组，每项格式为 {"id":"短英文标识","title":"不超过 20 字的分歧名称","detail":"一句话解释双方究竟判断不同在哪里"}。`,
     fallback,
