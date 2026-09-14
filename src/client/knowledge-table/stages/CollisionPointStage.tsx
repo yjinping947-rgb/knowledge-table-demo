@@ -1,13 +1,15 @@
-import type { CollisionPoint } from "@/lib/types";
+import type { CollisionPoint, SeatId } from "@/lib/types";
 
 export function CollisionPointStage({
   points,
   loading,
   onChoose,
+  seatLabels,
 }: {
   points: CollisionPoint[];
   loading: boolean;
   onChoose: (point: CollisionPoint) => void;
+  seatLabels: Record<SeatId, string>;
 }) {
   return (
     <>
@@ -18,7 +20,7 @@ export function CollisionPointStage({
           <button disabled={loading} key={point.id} onClick={() => onChoose(point)}>
             <b>{String.fromCharCode(65 + index)}</b>
             <span>
-              <small>{point.seatId === "action" ? "第一席 · 行动派" : "第二席 · 现实派"}</small>
+              <small>{point.seatId === "action" ? `第一席 · ${seatLabels.action}` : `第二席 · ${seatLabels.realist}`}</small>
               {point.text}
             </span>
             <em>→</em>

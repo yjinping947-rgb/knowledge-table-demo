@@ -1,15 +1,15 @@
 // app/api/discuss/route.ts
-// 两轮讨论：RAG 检索提供依据，聊天模型生成针对当前选择的新回答。
-// 详见 .harness/contracts/discuss.md。
+// 讨论入口：实时知乎搜索优先，失败时回退到本地 RAG；Agent 从多条材料提炼观点。
 
 import { NextResponse } from "next/server";
 import { discussRequestSchema } from "@/lib/validators";
-import { loadTopics } from "@/lib/rag/topics";
-import { getDiscussFallback } from "@/lib/fallback";
-import { generateSeatReply, retrieveSessionSources, sourceFields } from "@/lib/session/rag";
+import { loadTopics, topicForRequest } from "@/lib/rag/topics";
+import { retrieveSessionSourcesDetailed } from "@/lib/session/rag";
+import { generateSeatReply } from "@/lib/session/agent";
 import type { FirstChoice, SecondChoice, SeatId } from "@/lib/types";
+import { seatLabelsForTopic } from "@/lib/session/seatLabels";
 
-// 沿用原 fallback 表的"立意映射"逻辑：firstChoice 决定首轮应被谁回应，secondChoice 决定次轮
+// firstChoice/secondChoice 仍是旧版状态机字段，只用于决定席位，不直接作为搜索词。
 const FIRST_SEAT: Record<FirstChoice, SeatId> = {
   support_quit: "action",
   oppose_quit: "realist",
@@ -21,15 +21,45 @@ const SECOND_SEAT: Record<SecondChoice, SeatId> = {
   set_deadline: "conditional",
 };
 
+const SEAT_SEARCH_INTENT: Record<SeatId, string> = {
+  action: "支持尝试 实际做法 机会 先做什么",
+  realist: "风险 成本 难点 真实情况 代价",
+  conditional: "适合条件 前提 边界 如何判断 例外",
+};
+
 function buildQuery(input: { firstChoice: FirstChoice; secondChoice?: SecondChoice | null; round: 1 | 2 }, topicTitle: string): string {
-  if (input.round === 1) {
-    return `${topicTitle} ${input.firstChoice} 实际经验 真实案例`;
-  }
-  return `${topicTitle} ${input.secondChoice} 的真实经历`;
+  const seat = input.round === 1 ? FIRST_SEAT[input.firstChoice] : SECOND_SEAT[input.secondChoice!];
+  return `${topicTitle} ${SEAT_SEARCH_INTENT[seat]}`;
 }
 
-function buildFallback(input: { firstChoice: FirstChoice; secondChoice?: SecondChoice | null; round: 1 | 2 }) {
-  return getDiscussFallback(input.round, input.firstChoice, input.secondChoice ?? null);
+function topicFallback(topicTitle: string, input: { round: 1 | 2; firstChoice: FirstChoice; secondChoice?: SecondChoice | null }, seat: SeatId) {
+  return {
+    selectedSeatId: input.round === 1 ? (input.firstChoice === "support_quit" ? "action" : input.firstChoice === "oppose_quit" ? "realist" : "conditional") : (input.secondChoice === "leave_now" ? "action" : input.secondChoice === "wait_offer" ? "realist" : "conditional"),
+    reply: seat === "action"
+      ? `「${topicTitle}」别只停在判断上，先拆成一个今天能验证的小动作，用反馈确认下一步。`
+      : seat === "realist"
+        ? `谈「${topicTitle}」先看资源、时间和最坏结果，再判断这一步是否承受得住，别把愿望当条件。`
+        : `「${topicTitle}」没有统一答案，先找出会改变判断的条件，设个复查时间再调整。`,
+    hostComment: `围绕「${topicTitle}」，先把当前最重要的一步说清楚。`,
+    sourceIds: [],
+    sourceUrls: [],
+    authors: [],
+    sourceStatus: "no-result" as const,
+    mode: "fallback" as const,
+  };
+}
+
+function tooSimilar(first: string, second: string): boolean {
+  const normalize = (value: string) => value.replace(/[^\u4e00-\u9fffA-Za-z0-9]/g, "").toLowerCase();
+  const a = normalize(first);
+  const b = normalize(second);
+  if (a.length < 10 || b.length < 10) return false;
+  if (a.slice(0, 10) === b.slice(0, 10)) return true;
+  const grams = (value: string) => new Set(Array.from({ length: value.length - 1 }, (_, i) => value.slice(i, i + 2)));
+  const left = grams(a);
+  const right = grams(b);
+  const shared = [...left].filter((gram) => right.has(gram)).length;
+  return shared / Math.max(1, Math.min(left.size, right.size)) >= 0.62;
 }
 
 async function buildTopicFallback(
@@ -37,18 +67,22 @@ async function buildTopicFallback(
   topicTitle: string,
   seat: SeatId,
 ) {
-  const top = await retrieveSessionSources(
+  const top = (await retrieveSessionSourcesDetailed(
     input.topicId,
     seat,
-    `${topicTitle} ${input.firstChoice} ${input.secondChoice ?? ""} 真实经历`,
+    buildQuery(input, topicTitle),
     3,
-  );
-  if (top.length === 0) return { ...buildFallback(input), mode: "fallback" as const };
+    input.customQuestion,
+  ));
+  if (top.sources.length === 0) return topicFallback(topicTitle, input, seat);
   return {
     selectedSeatId: seat,
-    reply: top[0].contentText.slice(0, 280),
-    hostComment: `围绕「${topicTitle}」，请 ${top[0].author} 先接话。`,
-    ...sourceFields(top),
+    reply: topicFallback(topicTitle, input, seat).reply,
+    hostComment: `围绕「${topicTitle}」，先听听${seat === "action" ? "行动派" : seat === "realist" ? "现实派" : "条件派"}怎么判断。`,
+    sourceIds: top.sources.map((item) => item.contentId),
+    sourceUrls: top.sources.map((item) => item.url),
+    authors: top.sources.map((item) => item.author),
+    sourceStatus: top.status,
     mode: "fallback" as const,
   };
 }
@@ -62,7 +96,7 @@ export async function POST(request: Request) {
   }
 
   const topics = await loadTopics();
-  const currentTopic = topics[input.topicId];
+  const currentTopic = topicForRequest(topics, input.topicId, input.customQuestion);
   if (!currentTopic) {
     return NextResponse.json({ error: `话题 ${input.topicId} 不存在` }, { status: 404 });
   }
@@ -72,27 +106,32 @@ export async function POST(request: Request) {
     : SECOND_SEAT[input.secondChoice!];
 
   const query = buildQuery(input, currentTopic.title);
-  const top = await retrieveSessionSources(input.topicId, seat, query, 3);
-  if (top.length === 0) {
-    return NextResponse.json(await buildTopicFallback(input, currentTopic.title, seat));
-  }
-
-  const fallback = buildFallback(input);
+  const retrieved = await retrieveSessionSourcesDetailed(input.topicId, seat, query, 3, input.customQuestion);
+  if (retrieved.sources.length === 0) return NextResponse.json(await buildTopicFallback(input, currentTopic.title, seat));
   const generated = await generateSeatReply({
-    topicTitle: currentTopic.title,
     seat,
-    question: input.round === 1
-      ? `请针对用户“${input.firstChoice}”的选择，围绕当前话题做一次第一席/第二席发言，提出一个有依据的关键追问。`
-      : `请针对用户在具体情境下选择“${input.secondChoice}”，指出该选择需要面对的一个关键条件或代价。`,
-    sources: top,
-    fallback: fallback.reply,
+    topicTitle: currentTopic.title,
+    question: input.round === 2
+      ? "这是第二席发言。请针对上一席的实际说法给出不同角度：先承认一处合理点，再明确指出你的判断哪里不同，并给出只属于你这一席的建议，禁止复述上一席。"
+      : `用户正在了解「${currentTopic.title}」这个主题，请给出${seat === "action" ? "主动行动" : seat === "realist" ? "现实约束" : "条件判断"}角度的核心判断。`,
+    sources: retrieved.sources,
+    context: input.previousReply ? `上一席实际发言：${input.previousReply}` : undefined,
+    contrastReply: input.previousReply || undefined,
   });
-
+  const labels = seatLabelsForTopic(input.topicId, currentTopic.title);
+  const fallbackReply = topicFallback(currentTopic.title, input, seat).reply;
+  const reply = generated && !(input.round === 2 && input.previousReply && tooSimilar(input.previousReply, generated))
+    ? generated
+    : fallbackReply;
   return NextResponse.json({
     selectedSeatId: seat,
-    reply: generated.reply,
-    hostComment: `围绕「${currentTopic.title}」，${seat === "action" ? "行动派" : seat === "realist" ? "现实派" : "条件派"}回应了你的选择。`,
-    ...sourceFields(top),
-    mode: generated.mode,
+    reply,
+    hostComment: `围绕「${currentTopic.title}」，先听听${seat === "action" ? "行动派" : seat === "realist" ? "现实派" : "条件派"}怎么判断。`,
+    sourceIds: retrieved.sources.map((t) => t.contentId),
+    sourceUrls: retrieved.sources.map((t) => t.url),
+    authors: retrieved.sources.map((t) => t.author),
+    sourceStatus: retrieved.status,
+    mode: reply === generated ? "ai" as const : "fallback" as const,
+    seatLabel: labels[seat],
   });
 }

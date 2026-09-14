@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadTopics } from "@/lib/rag/topics";
+import { loadTopics, topicForRequest } from "@/lib/rag/topics";
 import { generateStructured, retrieveSessionSources, sourceExcerpt, sourceFields } from "@/lib/session/rag";
 import { perspectiveRequestSchema } from "@/lib/validators";
 
@@ -10,13 +10,15 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "隐藏分歧尚未确认" }, { status: 400 });
 
   const input = parsed.data;
-  const topic = (await loadTopics())[input.topicId];
+  const topic = topicForRequest(await loadTopics(), input.topicId, input.customQuestion);
   if (!topic) return NextResponse.json({ error: `话题 ${input.topicId} 不存在` }, { status: 404 });
 
   const sources = await retrieveSessionSources(
     input.topicId,
     "conditional",
     `${topic.title} ${input.confirmedDivergence} 保留选择 条件 期限`,
+    3,
+    input.customQuestion,
   );
   const name = perspectiveNames.find((candidate) => !input.excludedNames.includes(candidate)) ?? perspectiveNames[0];
   const sourceNote = sourceExcerpt(sources[0], "先把可改变的条件与不可逆的损失分开，再设置检查点。", 190);
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
     user: `话题：${topic.title}
 碰撞点：${input.collisionPoint}
 用户确认的隐藏分歧：${input.confirmedDivergence}
+用户已经补充的条件与追问：${input.userContext || "无"}
 参考来源：
 ${sources.map((source, index) => `[${index + 1}] ${source.title} · ${source.author}\n${source.contentText.slice(0, 700)}`).join("\n\n") || "暂无足够来源"}
 

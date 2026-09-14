@@ -125,18 +125,24 @@ export async function runRag(question: string, k = 4, roomId?: string): Promise<
     return { answer: fallbackAnswer, reasoningContent: "", retrieved: top, mode: "fallback" };
   }
 
-  const r = await fetch(`${baseURL}/chat/completions`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.3,
-    }),
-  });
+  let r: Response;
+  try {
+    r = await fetch(`${baseURL.replace(/\/+$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.3,
+      }),
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") console.error("RAG provider fallback:", error);
+    return { answer: fallbackAnswer, reasoningContent: "", retrieved: top, mode: "fallback" };
+  }
   if (!r.ok) {
     return { answer: fallbackAnswer, reasoningContent: "", retrieved: top, mode: "fallback" };
   }

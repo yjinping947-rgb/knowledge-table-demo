@@ -339,6 +339,43 @@
   margin-top: 20px;
 }
 
+.seasonsCustomHint {
+  margin: 10px 0 0;
+  color: var(--gray, #6b6b66);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.seasonsCustomForm {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.seasonsCustomForm input {
+  flex: 1;
+  min-height: 52px;
+  border: 2px solid var(--ink, #111);
+  padding: 0 15px;
+  background: #fff;
+  font: inherit;
+}
+
+.seasonsCustomForm button {
+  min-height: 52px;
+  border: 2px solid var(--ink, #111);
+  padding: 0 18px;
+  background: var(--ink, #111);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.seasonsCustomForm button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 @media (max-width: 720px) {
   .seasonsHeader {
     min-height: 610px;
@@ -395,5 +432,10 @@
 
   .seasonsTopicMeta {
     display: none;
+  }
+
+  .seasonsCustomForm {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }

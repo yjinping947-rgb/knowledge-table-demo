@@ -1,5 +1,5 @@
 // app/api/topics/route.ts
-// 列出所有话题（21 个，含 T21 AI 取代程序员）+ 每个话题的源数量。供 UI 展示。
+// 列出正式话题（当前 T01–T20）+ 每个话题的源数量。待重采话题保留在原始语料中但不公开展示。
 
 import { NextResponse } from "next/server";
 import { listTopics } from "@/lib/rag";

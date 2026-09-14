@@ -6,7 +6,8 @@ export type FirstChoice = "support_quit" | "oppose_quit" | "depends";
 export type SecondChoice = "leave_now" | "wait_offer" | "set_deadline";
 export type PositionChange = "unchanged" | "slightly_changed" | "changed";
 export type TendencyChoice = "closer_first" | "closer_second" | "both_valid" | "undecided" | "missed_point";
-export type Mode = "ai" | "generated" | "retrieval" | "fallback";
+export type Mode = "ai" | "fallback";
+export type SourceStatus = "zhihu-realtime" | "hybrid" | "local-fallback" | "no-result";
 
 export type DiscussResult = {
   selectedSeatId: SeatId;
@@ -16,7 +17,9 @@ export type DiscussResult = {
   // RAG 模式新增：每条 sourceId 对应的原文 URL + 作者
   sourceUrls?: string[];
   authors?: string[];
+  sourceStatus?: SourceStatus;
   mode: Mode;
+  seatLabel?: string;
 };
 
 export type DiscussionTurn = {
@@ -25,6 +28,7 @@ export type DiscussionTurn = {
   sourceIds: string[];
   sourceUrls?: string[];
   authors?: string[];
+  sourceStatus?: SourceStatus;
 };
 
 export type CollisionPoint = {
@@ -55,6 +59,7 @@ export type PerspectiveResult = {
   sourceIds: string[];
   sourceUrls?: string[];
   authors?: string[];
+  sourceStatus?: SourceStatus;
   mode: Mode;
 };
 
@@ -64,7 +69,13 @@ export type FollowupResult = {
   sourceIds: string[];
   sourceUrls?: string[];
   authors?: string[];
+  sourceStatus?: SourceStatus;
   mode: Mode;
+};
+
+export type FollowupTurn = {
+  question: string;
+  result: FollowupResult;
 };
 
 export type ThoughtTrail = {
@@ -88,8 +99,9 @@ export type SummaryResult = {
   sourceIds?: string[];
   sourceUrls?: string[];
   authors?: string[];
-  sourceSeats?: SeatId[];
+  sourceStatus?: SourceStatus;
   thoughtTrail?: ThoughtTrail;
   perspective?: PerspectiveResult;
+  goldenQuote?: string;
   mode: Mode;
 };
