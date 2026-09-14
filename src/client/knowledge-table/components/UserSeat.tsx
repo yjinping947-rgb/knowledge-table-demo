@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 export function UserSeat({ children }: { children: ReactNode }) {
   return (
     <section className="user-seat">
-      <span className="user-label">第四席 · 你</span>
+      <span className="user-label">你 · 这桌的发起者</span>
       {children}
     </section>
   );

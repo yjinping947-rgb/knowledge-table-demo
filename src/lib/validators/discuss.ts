@@ -5,6 +5,8 @@ import { z } from "zod";
 
 export const discussRequestSchema = z
   .object({
+    sessionId: z.string().trim().min(1).max(100).optional(),
+    requestId: z.string().trim().min(1).max(100).optional(),
     topicId: z.string().regex(/^T\d{2}$/).default("T01"),
     round: z.union([z.literal(1), z.literal(2)]),
     firstChoice: z.enum(["support_quit", "oppose_quit", "depends"]),

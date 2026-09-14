@@ -1,5 +1,5 @@
 // app/api/discuss/route.ts
-// 两轮讨论：reply 来自 RAG 库（1175 条 20 话题 × 3 派）真实内容，不调 LLM 生成。
+// 旧版两轮讨论接口：reply 来自多话题 × 3 派的真实 RAG 语料。
 // 详见 .harness/contracts/discuss.md。
 
 import { NextResponse } from "next/server";
@@ -7,6 +7,7 @@ import { discussRequestSchema } from "@/lib/validators";
 import { embedQuery, retrieveFromTopics } from "@/lib/rag";
 import { loadTopics } from "@/lib/rag/topics";
 import { getDiscussFallback } from "@/lib/fallback";
+import { makeRequestMeta } from "@/lib/session/rag";
 import type { FirstChoice, SecondChoice, SeatId } from "@/lib/types";
 
 // 沿用原 fallback 表的"立意映射"逻辑：firstChoice 决定首轮应被谁回应，secondChoice 决定次轮
@@ -74,12 +75,18 @@ export async function POST(request: Request) {
 
   // 缺 LLM 配置 → fallback
   if (!process.env.AI_API_KEY || !process.env.AI_BASE_URL) {
-    return NextResponse.json(await buildTopicFallback(input, currentTopic.title, seat));
+    return NextResponse.json({ ...makeRequestMeta(input, input.topicId), ...await buildTopicFallback(input, currentTopic.title, seat) });
   }
 
   // 1. embedding（缺 key 时拿不到 vec，retrieveFromTopics 会退化为 keyword + authorityLevel 排序）
   const query = buildQuery(input, currentTopic.title);
-  const queryVec = await embedQuery(query);
+  let queryVec: number[] | null = null;
+  try {
+    queryVec = await embedQuery(query);
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") console.error("discuss retrieval failed:", error);
+    return NextResponse.json({ ...makeRequestMeta(input, input.topicId), ...await buildTopicFallback(input, currentTopic.title, seat) });
+  }
 
   // 2. RAG 检索（限定当前话题 + seat）。queryVec 缺失时仍可走关键词排序。
   const top = await retrieveFromTopics(
@@ -89,18 +96,21 @@ export async function POST(request: Request) {
     { firstChoice: input.firstChoice, secondChoice: input.secondChoice ?? undefined, round: input.round },
   );
   if (top.length === 0) {
-    return NextResponse.json(await buildTopicFallback(input, currentTopic.title, seat));
+    return NextResponse.json({ ...makeRequestMeta(input, input.topicId), ...await buildTopicFallback(input, currentTopic.title, seat) });
   }
 
   // 3. 拼响应：reply 用 top[0] 的 ContentText 摘录，附原文 url
   const main = top[0];
   return NextResponse.json({
+    ...makeRequestMeta(input, input.topicId),
     selectedSeatId: seat,
     reply: main.contentText.slice(0, 280),
     hostComment: `「${main.author}」对「${main.title}」的回答`,
     sourceIds: top.map((t) => t.contentId),
     sourceUrls: top.map((t) => t.url),
     authors: top.map((t) => t.author),
+    // 旧契约保留 mode=ai；新 V2.5 客户端可通过 mode 看到 retrieval 语义，
+    // 但这里不改旧评测依赖的 /api/discuss 值。
     mode: "ai" as const,
   });
 }

@@ -1,6 +1,7 @@
 // src/client/knowledge-table/components/SeatCard.tsx
 
 import type { CollisionResult, DiscussResult, PerspectiveResult, SeatId } from "@/lib/types";
+import { sources } from "@/data";
 import type { Seat } from "@/data";
 
 export function SeatCard({
@@ -12,6 +13,7 @@ export function SeatCard({
   stance,
   collision,
   perspective,
+  statement,
   frameworkReply,
   onAsk,
 }: {
@@ -23,17 +25,19 @@ export function SeatCard({
   stance?: string;
   collision?: CollisionResult | null;
   perspective?: PerspectiveResult | null;
+  statement?: string;
   frameworkReply?: string;
   onAsk?: (seatId: SeatId) => void;
 }) {
   const displayName = perspective?.name ?? seat.name;
-  const displayStance = perspective?.reframe ?? stance ?? seat.stance;
+  const displayStance = perspective?.reframe ?? statement ?? stance ?? seat.stance;
   const turn = collision?.challenge.seatId === seat.id
     ? { label: "提出质疑", ...collision.challenge }
     : collision?.response.seatId === seat.id
       ? { label: "完成回应", ...collision.response }
       : null;
   const displaySourceIds = perspective?.sourceIds ?? seat.sourceIds;
+  const displaySources = displaySourceIds.map((id) => sources.find((source) => source.id === id)).filter(Boolean);
 
   return (
     <article
@@ -51,7 +55,7 @@ export function SeatCard({
       <p className="stance">&ldquo;{displayStance}&rdquo;</p>
       {isSpeaking && latest && (
         <div className="reply">
-          <span>回应你的选择</span>
+          <span>回应你的选择 · {latest.mode === "generated" ? "检索后生成" : latest.mode === "retrieval" ? "来源摘录" : latest.mode === "fallback" ? "席位兜底" : "AI"}</span>
           <p>{latest.reply}</p>
           {latest.sourceUrls && latest.sourceUrls[0] && (
             <a
@@ -73,6 +77,7 @@ export function SeatCard({
           )}
         </div>
       )}
+      {!isSpeaking && statement && statement !== displayStance && <div className="reply"><span>当前判断</span><p>{statement}</p></div>}
       {turn && (
         <div className="reply">
           <span>{turn.label}</span>
@@ -86,10 +91,12 @@ export function SeatCard({
           {frameworkReply}
         </div>
       )}
-      <div className="source-chips">
-        {displaySourceIds.map((id) => (
-          <span key={id}>{id}</span>
-        ))}
+      <div className="source-chips" aria-label={`${displayName} 的来源`}>
+        {displaySources.length > 0 ? displaySources.map((source) => source && (
+          source.url
+            ? <a key={source.id} href={source.url} target="_blank" rel="noreferrer" title={`${source.title} · 知乎来源`} style={{ font: "700 10px monospace", border: "1px solid", padding: "4px 6px", color: "inherit", textDecoration: "none" }}>{source.id} · 知乎</a>
+            : <span key={source.id}>{source.id} · 本地</span>
+        )) : displaySourceIds.map((id) => <span key={id}>{id} · 来源待展开</span>)}
       </div>
       {onAsk && <button className="ask-button" onClick={() => onAsk(seat.id)}>举手追问这席 ↗</button>}
     </article>

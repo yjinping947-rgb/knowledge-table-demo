@@ -1,25 +1,47 @@
 import { NextResponse } from "next/server";
+
 import { loadTopics } from "@/lib/rag/topics";
-import { retrieveSessionSources, sessionMode, sourceExcerpt, sourceFields } from "@/lib/session/rag";
+import {
+  generateSeatReply,
+  makeRequestMeta,
+  retrieveSessionSources,
+  seatFallback,
+  withSourceFields,
+} from "@/lib/session/rag";
 import { followupRequestSchema } from "@/lib/validators";
+import type { SeatId } from "@/lib/types";
 
 export async function POST(request: Request) {
   const parsed = followupRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "追问内容不完整" }, { status: 400 });
 
   const input = parsed.data;
+  const meta = makeRequestMeta(input, input.topicId);
   const topic = (await loadTopics())[input.topicId];
   if (!topic) return NextResponse.json({ error: `话题 ${input.topicId} 不存在` }, { status: 404 });
 
-  const sources = await retrieveSessionSources(input.topicId, input.seatId, `${topic.title} ${input.question}`);
-  const fallback = input.seatId === "action"
-    ? "如果继续等待也在持续消耗身心，先停止损失本身就是一种行动。关键是确认这种消耗是否已经超过你的恢复能力。"
-    : "先把现金流、替代方案和最坏情况列出来，能承受风险再行动，会比只凭当下情绪更稳。";
+  const seat = input.seatId as SeatId;
+  const conditions = [
+    ...(input.context.userAddedConditions ?? []),
+    ...(input.userAddedConditions ?? []),
+  ];
+  const sources = await retrieveSessionSources(input.topicId, seat, `${topic.title} ${input.question}`, 3);
+  // 检索器已按席位过滤；二次检查可防止未来检索器改动导致来源串席。
+  const safeSources = sources.filter((source) => topic.seats[seat].some((item) => item.contentId === source.contentId));
+  const generated = await generateSeatReply({
+    topicTitle: topic.title,
+    seat,
+    question: input.question,
+    sources: safeSources,
+    userAddedConditions: conditions,
+    fallback: seatFallback(seat, input.question, conditions),
+  });
 
   return NextResponse.json({
-    seatId: input.seatId,
-    reply: sourceExcerpt(sources[0], fallback, 260),
-    ...sourceFields(sources),
-    mode: sessionMode(),
+    ...meta,
+    seatId: seat,
+    reply: generated.reply,
+    ...withSourceFields(safeSources, seat),
+    mode: generated.mode,
   });
 }
