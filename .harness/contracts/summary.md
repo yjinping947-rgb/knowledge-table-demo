@@ -33,7 +33,7 @@
   sourceIds: string[];            // 4 条来源的 contentId
   sourceUrls: string[];           // 4 条原文链接
   authors: string[];              // 4 位答主
-  mode: 'ai' | 'fallback';
+  mode: 'generated' | 'retrieval' | 'fallback';  // PRD 10.2 三值；旧值 'ai' 已废弃
 }
 ```
 

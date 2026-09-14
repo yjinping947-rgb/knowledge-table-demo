@@ -1,5 +1,5 @@
 // src/client/knowledge-table/components/Sources.tsx
-// 20 话题 × 3 派 RAG 知识库概览。客户端 fetch /api/topics。
+// 多话题 × 3 派 RAG 知识库概览。客户端 fetch /api/topics。
 
 import { useEffect, useState } from "react";
 

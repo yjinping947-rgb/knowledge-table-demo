@@ -4,6 +4,7 @@
 
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { getAiConfig } from "@/lib/ai/config";
 import { embedQuery } from "./client";
 import { retrieveTopK, loadCorpus, type RagItem } from "./retrieve";
 
@@ -118,9 +119,9 @@ export async function runRag(question: string, k = 4, roomId?: string): Promise<
   const userPrompt = `参考来源：\n${context}\n\n用户问题：${question}`;
 
   // 6. 调 LLM
-  const apiKey = process.env.AI_API_KEY;
-  const baseURL = process.env.AI_BASE_URL;
-  const model = process.env.AI_MODEL || "qwen3-vl-flash";
+  // 改走统一的运行时配置：这样"页面填 key"对 /api/answer 同样生效
+  // （原先直接读 process.env，队友在界面填的 key 在这里会被忽略）。
+  const { apiKey, baseUrl: baseURL, model } = getAiConfig();
   if (!apiKey || !baseURL) {
     return { answer: fallbackAnswer, reasoningContent: "", retrieved: top, mode: "fallback" };
   }
@@ -135,6 +136,9 @@ export async function runRag(question: string, k = 4, roomId?: string): Promise<
         { role: "user", content: userPrompt },
       ],
       temperature: 0.3,
+      // 非思考模式：这是直连 fetch 的路径，不走 callLLM，必须显式关掉，
+      // 否则会跑在 DeepSeek 默认思考模式（慢且烧思维链）。
+      thinking: { type: "disabled" },
     }),
   });
   if (!r.ok) {

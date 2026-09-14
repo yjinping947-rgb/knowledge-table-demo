@@ -37,8 +37,8 @@ async function check(name, fn) {
 
 // —— /api/discuss RAG 质量 ——
 
-// 1. firstChoice=support_quit → mode=ai
-await check("discuss support_quit → mode=ai", async () => {
+// 1. 无模型配置时允许明确 fallback；有配置时可以是 generated / retrieval / ai。
+await check("discuss support_quit → 明确模式", async () => {
   const r = await post("/api/discuss", {
     round: 1,
     firstChoice: "support_quit",
@@ -104,6 +104,11 @@ await check("discuss 缺 firstChoice → 400", async () => {
 // —— /api/summary RAG 质量 ——
 
 // 6. summary 4 字段都有
+// 注意：summary 的 mode 契约已从旧的 "ai" 修正为 PRD 10.2 的三值语义
+// （generated | retrieval | fallback）。这里断言"确实由模型生成"，
+// 而不是接受任何非空值 —— 否则会掩盖"其实走了降级"的情况。
+const SUMMARY_MODES = ["generated", "retrieval", "fallback"];
+
 await check("summary 4 字段非空", async () => {
   const r = await post("/api/summary", {
     firstChoice: "support_quit",
@@ -116,10 +121,14 @@ await check("summary 4 字段非空", async () => {
   for (const f of ["consensus", "disagreement", "hiddenAssumption", "openQuestion", "trajectory"]) {
     assert(j[f], `summary.${f} 缺失`);
   }
-  assert(["ai", "generated"].includes(j.mode));
+  assert(
+    SUMMARY_MODES.includes(j.mode),
+    `summary.mode 应为 ${SUMMARY_MODES.join("|")}，实际 ${j.mode}`,
+  );
+  assert.equal(j.mode, "generated", `期望实调模型（generated），实际 ${j.mode}`);
 });
 
-// 7. summary 4 字段都来自真实知乎（mode=ai + 长度 > 10）
+// 7. summary 4 字段都来自真实知乎（mode=generated + 长度 > 10）
 await check("summary 内容是真实回答", async () => {
   const r = await post("/api/summary", {
     firstChoice: "oppose_quit",

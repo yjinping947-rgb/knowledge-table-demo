@@ -6,6 +6,7 @@
 import Image from "next/image";
 import type { Season } from "@/data";
 import type { TopicSummary } from "@/lib/rag";
+import { KeySetup } from "@/client/knowledge-table/components/KeySetup";
 import styles from "./seasons.module.css";
 
 export function SeasonsShell({
@@ -49,6 +50,9 @@ export function SeasonsShell({
       </header>
 
       <section className={styles.seasonsContent} id="topics">
+        <div className="key-setup-lobby">
+          <KeySetup />
+        </div>
         <header className={styles.seasonsSectionHead}>
           <div>
             <p className={styles.seasonsEyebrow}>话题大厅</p>

@@ -1,6 +1,6 @@
 // src/lib/validators/index.ts
 export { discussRequestSchema, discussOutputSchema } from "./discuss";
-export { summaryRequestSchema, summaryOutputSchema } from "./summary";
+export { discussionMapSchema, summaryRequestSchema, summaryOutputSchema } from "./summary";
 export {
   collisionRequestSchema,
   divergenceRequestSchema,

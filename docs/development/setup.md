@@ -48,7 +48,7 @@ node tests/core-branches.mjs
 npm test
 ```
 
-## 5. AI 配置（可选）
+## 5. AI 配置（可选，但想看真 AI 效果就必须配）
 
 复制 `.env.example` 为 `.env.local`：
 
@@ -60,11 +60,26 @@ cp .env.example .env.local
 
 ```text
 AI_API_KEY=你的密钥
-AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-AI_MODEL=qwen3-vl-flash
+AI_BASE_URL=https://api.deepseek.com
+AI_MODEL=deepseek-flash
 ```
 
-不填也能跑 —— 缺 key 时自动 fallback，体验不中断。
+本项目默认走 **DeepSeek**。任何 OpenAI 兼容网关都可用 —— 换 `AI_BASE_URL` 与
+`AI_MODEL` 即可。
+
+> ⚠️ `.env.local` 已被 gitignore，**你的 key 不会被提交到仓库**。
+> 请勿把 key 写进 `.env.example` 或任何被跟踪的文件。
+
+不填也能跑 —— 缺 key 时自动 fallback，体验不中断。但要注意：**fallback 状态下
+回答是模板/语料摘录，不是真 AI 生成**。响应的 `mode` 字段会如实标注：
+
+| mode | 含义 |
+|---|---|
+| `generated` | 真 AI 生成（这才是你要的） |
+| `retrieval` | 仅返回来源摘录（LLM 调用失败） |
+| `fallback` | 规则兜底 |
+
+若看到回答明显变短、像模板，先检查 `mode` 是不是 `generated`。
 
 ## 6. 钩子初始化
 
